@@ -9,6 +9,7 @@
 --   res:snp+pst                  forbidden item categories
 -- A setting that is not listed keeps the game default ("Standard").
 require("ui.qol.util")
+require("ui.qol.lang")
 
 local QoL = CoD.QoL
 local Rules = {}
@@ -16,22 +17,16 @@ QoL.rules = Rules
 
 -- Item categories for restrictions --------------------------------------------
 
+-- Labels come from lang.lua (key r_cat_<id>) when the editor is built.
 Rules.CATEGORIES = {
-    { id = "smg", label = "Maschinenpistolen" },
-    { id = "ar", label = "Sturmgewehre" },
-    { id = "cqb", label = "Schrotflinten" },
-    { id = "lmg", label = "LMGs" },
-    { id = "snp", label = "Scharfschützengewehre" },
-    { id = "pst", label = "Pistolen" },
-    { id = "lnc", label = "Werfer" },
-    { id = "mel", label = "Nahkampfwaffen" },
-    { id = "spw", label = "Spezialwaffen" },
-    { id = "gad", label = "Ausrüstung (tödlich/taktisch)" },
-    { id = "prk", label = "Extras" },
-    { id = "wc", label = "Wildcards" },
-    { id = "hro", label = "Spezialisten-Fähigkeiten" },
-    { id = "ks", label = "Punkteserien" }
+    { id = "smg" }, { id = "ar" }, { id = "cqb" }, { id = "lmg" }, { id = "snp" },
+    { id = "pst" }, { id = "lnc" }, { id = "mel" }, { id = "spw" }, { id = "gad" },
+    { id = "prk" }, { id = "wc" }, { id = "hro" }, { id = "ks" }
 }
+
+function Rules.categoryLabel(id)
+    return QoL.L("r_cat_" .. id)
+end
 
 local PRIMARIES = { "smg", "ar", "cqb", "lmg", "snp" }
 local SECONDARIES = { "pst", "lnc", "spw" }
@@ -58,13 +53,13 @@ end
 
 -- Quick choices in the restriction group ("fixed modes").
 Rules.TEMPLATES = {
-    { label = "Alles erlaubt", forbid = {} },
-    { label = "Nur Scharfschützengewehre", forbid = join(without(PRIMARIES, "snp"), SECONDARIES) },
-    { label = "Nur Schrotflinten", forbid = join(without(PRIMARIES, "cqb"), SECONDARIES) },
-    { label = "Nur Maschinenpistolen", forbid = join(without(PRIMARIES, "smg"), SECONDARIES) },
-    { label = "Nur Pistolen", forbid = join(PRIMARIES, { "lnc", "spw" }) },
-    { label = "Nur Nahkampf", forbid = join(PRIMARIES, SECONDARIES, { "gad" }) },
-    { label = "Ohne Punkteserien und Spezialisten", forbid = { "ks", "hro" } }
+    { key = "r_tpl_all", forbid = {} },
+    { key = "r_tpl_sniper", forbid = join(without(PRIMARIES, "snp"), SECONDARIES) },
+    { key = "r_tpl_shotgun", forbid = join(without(PRIMARIES, "cqb"), SECONDARIES) },
+    { key = "r_tpl_smg", forbid = join(without(PRIMARIES, "smg"), SECONDARIES) },
+    { key = "r_tpl_pistol", forbid = join(PRIMARIES, { "lnc", "spw" }) },
+    { key = "r_tpl_melee", forbid = join(PRIMARIES, SECONDARIES, { "gad" }) },
+    { key = "r_tpl_noks", forbid = { "ks", "hro" } }
 }
 
 -- Classifies an item from Engine.GetUnlockableInfoByIndex.
@@ -197,18 +192,18 @@ local function botEntries()
         table.insert(counts, { value = count, text = count == 0 and localize("MENU_DISABLED") or tostring(count) })
     end
     return {
-        { kind = "dvar", key = "bot_maxAllies", label = "Bots " .. localize("MPUI_ALLIES_CAPS"), options = counts,
-            hint = "Anzahl Bots im Team der Verbündeten (Team-Modi)." },
-        { kind = "dvar", key = "bot_maxAxis", label = "Bots " .. localize("MPUI_AXIS_CAPS"), options = counts,
-            hint = "Anzahl Bots im Team der Achsenmächte (Team-Modi)." },
-        { kind = "dvar", key = "bot_maxFree", label = "Bots (Jeder gegen jeden)", options = counts,
-            hint = "Anzahl Bots in Modi ohne Teams." },
+        { kind = "dvar", key = "bot_maxAllies", label = QoL.L("r_bots_allies", localize("MPUI_ALLIES_CAPS")),
+            options = counts, hint = QoL.L("r_bots_allies_hint") },
+        { kind = "dvar", key = "bot_maxAxis", label = QoL.L("r_bots_axis", localize("MPUI_AXIS_CAPS")),
+            options = counts, hint = QoL.L("r_bots_axis_hint") },
+        { kind = "dvar", key = "bot_maxFree", label = QoL.L("r_bots_ffa"), options = counts,
+            hint = QoL.L("r_bots_ffa_hint") },
         { kind = "dvar", key = "bot_difficulty", label = localize("MENU_BASICTRAINING_DIFFICULTY_CAPS"), options = {
             { value = 0, text = localize("MENU_BASICTRAINING_EASY_CAPS") },
             { value = 1, text = localize("MENU_BASICTRAINING_NORMAL_CAPS") },
             { value = 2, text = localize("MENU_BASICTRAINING_HARD_CAPS") },
             { value = 3, text = localize("MENU_BASICTRAINING_FU_CAPS") }
-        }, hint = "Schwierigkeit der Bots." }
+        }, hint = QoL.L("r_bots_difficulty_hint") }
     }
 end
 
@@ -231,7 +226,8 @@ end
 Rules.groupCache = {}
 
 function Rules.groups(gametypes)
-    local cacheKey = table.concat(gametypes, "+")
+    -- The cache also depends on the language of the labels.
+    local cacheKey = QoL.lang.current() .. ":" .. table.concat(gametypes, "+")
     if not Rules.groupCache[cacheKey] then
         Rules.groupCache[cacheKey] = Rules.buildGroups(gametypes)
     end
@@ -245,12 +241,12 @@ function Rules.buildGroups(gametypes)
         local names = {}
         for _, name in ipairs((options.TopLevelGametypeSettings or {})[gametype] or {}) do table.insert(names, name) end
         for _, name in ipairs((options.SubLevelGametypeSettings or {})[gametype] or {}) do table.insert(names, name) end
-        addGroup(groups, "MODUS: " .. string.upper(QoL.rules.gametypeName(gametype)), names, seen)
+        addGroup(groups, QoL.L("r_group_mode", QoL.rules.gametypeName(gametype)), names, seen)
     end
-    addGroup(groups, "ALLGEMEIN", join(options.GlobalTopLevelGametypeSettings or {}, options.GeneralSettings or {}), seen)
-    addGroup(groups, "GESUNDHEIT UND SCHADEN", options.HealthAndDamageSettings, seen)
-    addGroup(groups, "SPAWN", options.SpawnSettings, seen)
-    addGroup(groups, "KLASSEN", options.CustomClassSettings, seen)
+    addGroup(groups, QoL.L("r_group_general"), join(options.GlobalTopLevelGametypeSettings or {}, options.GeneralSettings or {}), seen)
+    addGroup(groups, QoL.L("r_group_health"), options.HealthAndDamageSettings, seen)
+    addGroup(groups, QoL.L("r_group_spawn"), options.SpawnSettings, seen)
+    addGroup(groups, QoL.L("r_group_classes"), options.CustomClassSettings, seen)
     local global = {}
     for _, name in ipairs(options.GlobalSettings or {}) do
         -- The tournament sets teamAssignment itself.
@@ -258,15 +254,15 @@ function Rules.buildGroups(gametypes)
             table.insert(global, name)
         end
     end
-    addGroup(groups, "SONSTIGES", global, seen)
-    table.insert(groups, { title = "BOTS", entries = botEntries() })
+    addGroup(groups, QoL.L("r_group_misc"), global, seen)
+    table.insert(groups, { title = QoL.L("r_group_bots"), entries = botEntries() })
     local restrictions = {}
     for _, category in ipairs(Rules.CATEGORIES) do
-        table.insert(restrictions, { kind = "restriction", key = category.id, label = category.label,
-            hint = "Verbotene Gegenstände können im Klasseneditor nicht ausgerüstet werden.",
-            options = { { value = 1, text = "Verboten" } } })
+        table.insert(restrictions, { kind = "restriction", key = category.id, label = Rules.categoryLabel(category.id),
+            hint = QoL.L("r_restriction_hint"),
+            options = { { value = 1, text = QoL.L("r_forbidden") } } })
     end
-    table.insert(groups, { title = "BESCHRÄNKUNGEN", entries = restrictions, templates = Rules.TEMPLATES })
+    table.insert(groups, { title = QoL.L("r_group_restrictions"), entries = restrictions, templates = Rules.TEMPLATES })
     return groups
 end
 
@@ -284,15 +280,13 @@ end
 
 -- Editing ----------------------------------------------------------------------------
 
-local STANDARD = "Standard"
-
 function Rules.valueText(entry, rules)
     if entry.kind == "restriction" then
-        return rules.forbid[entry.key] and "Verboten" or "Erlaubt"
+        return rules.forbid[entry.key] and QoL.L("r_forbidden") or QoL.L("r_allowed")
     end
     local value = rules.values[entry.key]
     if value == nil then
-        return STANDARD
+        return QoL.L("r_standard")
     end
     for _, option in ipairs(entry.options) do
         if option.value == value then
@@ -340,14 +334,14 @@ function Rules.summary(text, gametypes)
     local forbidden = {}
     for _, category in ipairs(Rules.CATEGORIES) do
         if rules.forbid[category.id] then
-            table.insert(forbidden, category.label)
+            table.insert(forbidden, Rules.categoryLabel(category.id))
         end
     end
     if #forbidden > 0 then
-        table.insert(parts, "Verboten: " .. table.concat(forbidden, ", "))
+        table.insert(parts, QoL.L("r_forbidden_list", table.concat(forbidden, ", ")))
     end
     if #parts == 0 then
-        return "Standardregeln"
+        return QoL.L("r_default_rules")
     end
     return table.concat(parts, "  |  ")
 end
@@ -425,6 +419,6 @@ function Rules.apply(text, controller)
     pcall(function()
         Engine.ForceNotifyModelSubscriptions(Engine.CreateModel(Engine.CreateModel(Engine.GetGlobalModel(), "GametypeSettings"), "Update"))
     end)
-    QoL.log("Regeln angewendet: " .. (text ~= "" and text or "Standard") .. " (" .. restricted .. " Gegenstände gesperrt)")
+    QoL.log("rules applied: " .. (text ~= "" and text or "default") .. " (" .. restricted .. " items locked)")
     return true
 end

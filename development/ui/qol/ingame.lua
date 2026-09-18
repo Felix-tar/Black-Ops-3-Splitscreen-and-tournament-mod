@@ -7,6 +7,7 @@ if Engine.GetCurrentMap() == "core_frontend" then
 end
 
 require("ui.qol.util")
+require("ui.qol.lang")
 require("ui.qol.names")
 
 local QoL = CoD.QoL
@@ -76,13 +77,13 @@ local function describeKill(controller, attackerNum, victimNum, flags)
     local victim = nameForClient(controller, victimNum) or "?"
     local attacker = nameForClient(controller, attackerNum)
     if flags % (FLAG_SUICIDE * 2) >= FLAG_SUICIDE or not attacker or attackerNum == victimNum then
-        return victim .. "  [Selbstmord]"
+        return victim .. QoL.L("ig_suicide")
     end
     local how = "  >  "
     if flags % (FLAG_HEADSHOT * 2) >= FLAG_HEADSHOT then
-        how = "  [Kopfschuss]  "
+        how = QoL.L("ig_headshot")
     elseif flags % (FLAG_MELEE * 2) >= FLAG_MELEE then
-        how = "  [Nahkampf]  "
+        how = QoL.L("ig_melee")
     end
     return attacker .. how .. victim
 end

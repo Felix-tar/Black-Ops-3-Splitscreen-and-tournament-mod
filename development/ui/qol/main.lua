@@ -6,6 +6,7 @@ require("ui.qol.util")
 local QoL = CoD.QoL
 
 local MODULES = {
+    "ui.qol.lang",
     "ui.qol.input",
     "ui.qol.lobbybuttons",
     "ui.qol.ui",

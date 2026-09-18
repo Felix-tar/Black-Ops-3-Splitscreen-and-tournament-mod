@@ -2,6 +2,7 @@
 -- rules), rules editor, teams, preset file import/export and standings.
 -- Left a list, right a preview (map picture, mode icon, rules).
 require("ui.qol.util")
+require("ui.qol.lang")
 require("ui.qol.ui")
 require("ui.qol.data")
 require("ui.qol.rules")
@@ -17,16 +18,15 @@ local Tournament = QoL.tournament
 
 local NOT_PLAYED = -1
 local DRAW = 0
-local TEAM_NAMES = { "TEAM A", "TEAM B" }
 local PREVIEW_ROWS = 20
 local PREVIEW_CHARS = 42
 local IMAGE_ROWS = 14
 
-local FORMAT_INFO = {
-    bo3 = "Zwei Teams beliebiger Größe. Wer zuerst 2 Runden gewinnt, gewinnt das Turnier. Unentschieden wird wiederholt.",
-    bo5 = "Zwei Teams beliebiger Größe. Wer zuerst 3 Runden gewinnt, gewinnt das Turnier. Unentschieden wird wiederholt.",
-    ffa = "Jeder gegen jeden, 3 Runden. Pro Runde bekommt der Letzte 1 Punkt, jeder Platz darüber einen mehr."
-}
+local function teamName(team)
+    return QoL.L(team == 2 and "t_team_b" or "t_team_a")
+end
+
+local FORMAT_INFO = { bo3 = "t_info_bo3", bo5 = "t_info_bo5", ffa = "t_info_ffa" }
 
 -- Word wrap for the preview; long words (codes) are cut into pieces.
 local function wrap(text, width)
@@ -87,7 +87,7 @@ LUI.createMenu.QoLTournament = function(controller)
     local editing = nil
     local confirmItem = nil
 
-    UI.text(self, "TURNIER", 110, 40, 640, 40, UI.ORANGE)
+    UI.text(self, QoL.L("t_title"), 110, 40, 640, 40, UI.ORANGE)
     local subtitle = UI.text(self, "", 110, 84, 1060, 22, UI.GREY)
     local list = UI.newList(self, 110, 118, 650, 32, 14)
     local message = UI.text(self, "", 110, 580, 1060, 24, UI.WHITE)
@@ -148,13 +148,13 @@ LUI.createMenu.QoLTournament = function(controller)
 
     local function roundPreview(index, round, rulesText, extra)
         local lines = {}
-        addLines(lines, "Karte: " .. Tournament.nameOf(maps, round.map))
-        addLines(lines, "Regeln: " .. Rules.summary(rulesText or "", { round.gametype }))
+        addLines(lines, QoL.L("t_map", Tournament.nameOf(maps, round.map)))
+        addLines(lines, QoL.L("t_rules", Rules.summary(rulesText or "", { round.gametype })))
         if extra then
             addLines(lines, extra)
         end
         return {
-            title = "RUNDE " .. index, image = mapImage(round.map), icon = modeIcon(round.gametype),
+            title = QoL.L("t_round", index), image = mapImage(round.map), icon = modeIcon(round.gametype),
             mode = Tournament.nameOf(gametypes, round.gametype), lines = lines
         }
     end
@@ -165,19 +165,21 @@ LUI.createMenu.QoLTournament = function(controller)
         end
         local lines = {}
         local format = Tournament.formats[preset.format] or Tournament.formats.bo3
-        addLines(lines, format.title .. (preset.builtin and "  (eingebaute Vorlage)" or "  (eigene Vorlage)"))
-        addLines(lines, preset.rulesMode == "r" and "Regeln je Runde" or ("Regeln: " .. Rules.summary(preset.rules or "", {})))
+        addLines(lines, Tournament.formatTitle(preset.format)
+            .. QoL.L(preset.builtin and "t_preset_builtin_tag" or "t_preset_own_tag"))
+        addLines(lines, preset.rulesMode == "r" and QoL.L("t_preset_rules_each")
+            or QoL.L("t_rules", Rules.summary(preset.rules or "", {})))
         for index, round in ipairs(preset.rounds) do
             if index <= format.rounds then
-                local mapName = (round.map and round.map ~= "") and Tournament.nameOf(maps, round.map) or "Karte automatisch"
+                local mapName = (round.map and round.map ~= "") and Tournament.nameOf(maps, round.map) or QoL.L("t_preset_map_auto")
                 addLines(lines, index .. ". " .. Tournament.nameOf(gametypes, round.gametype) .. " - " .. mapName)
                 if preset.rulesMode == "r" then
                     addLines(lines, "   " .. Rules.summary(round.rules or "", { round.gametype }))
                 end
             end
         end
-        addLines(lines, "A/Enter/Klick: Vorlage laden (ersetzt die Einstellungen unten).")
-        return { title = "VORLAGE: " .. preset.name, lines = lines }
+        addLines(lines, QoL.L("t_preset_load_hint"))
+        return { title = QoL.L("t_preset", preset.name), lines = lines }
     end
 
     local function refreshPresets(selectName)
@@ -198,10 +200,10 @@ LUI.createMenu.QoLTournament = function(controller)
             counts[p.team] = counts[p.team] + 1
         end
         if #draft.players < 2 then
-            return false, "Mindestens 2 Spieler in der Lobby nötig (Splitscreen oder LAN)."
+            return false, QoL.L("t_need_players")
         end
         if Tournament.formats[draft.format].teams and (counts[1] == 0 or counts[2] == 0) then
-            return false, "Beide Teams brauchen mindestens einen Spieler."
+            return false, QoL.L("t_need_teams")
         end
         return true
     end
@@ -264,11 +266,11 @@ LUI.createMenu.QoLTournament = function(controller)
         for _, group in ipairs(Rules.groups(rulesGametypes())) do
             table.insert(items, { text = "---  " .. group.title .. "  ---", header = true, color = UI.ORANGE })
             for _, template in ipairs(group.templates or {}) do
-                table.insert(items, { text = "Schnellwahl:  " .. template.label, color = UI.GREY,
+                table.insert(items, { text = QoL.L("t_quick", QoL.L(template.key)), color = UI.GREY,
                     action = function()
                         Rules.applyTemplate(template, editing)
                         storeRules()
-                        say("Beschränkungen: " .. template.label, UI.GREEN)
+                        say(QoL.L("t_quick", QoL.L(template.key)), UI.GREEN)
                     end,
                     preview = function()
                         local lines = {}
@@ -276,13 +278,14 @@ LUI.createMenu.QoLTournament = function(controller)
                         for _, id in ipairs(template.forbid) do
                             for _, category in ipairs(Rules.CATEGORIES) do
                                 if category.id == id then
-                                    table.insert(forbidden, category.label)
+                                    table.insert(forbidden, Rules.categoryLabel(category.id))
                                 end
                             end
                         end
-                        addLines(lines, #forbidden > 0 and ("Verboten: " .. table.concat(forbidden, ", ")) or "Keine Beschränkungen.")
-                        addLines(lines, "Die Spieler müssen sich passende Klassen bauen; verbotene Gegenstände lassen sich nicht ausrüsten.")
-                        return { title = template.label, lines = lines }
+                        addLines(lines, #forbidden > 0 and QoL.L("r_forbidden_list", table.concat(forbidden, ", "))
+                            or QoL.L("r_no_restriction"))
+                        addLines(lines, QoL.L("r_restriction_info"))
+                        return { title = QoL.L(template.key), lines = lines }
                     end })
             end
             for _, entry in ipairs(group.entries) do
@@ -299,43 +302,43 @@ LUI.createMenu.QoLTournament = function(controller)
                         local lines = {}
                         addLines(lines, entry.hint ~= "" and entry.hint or " ")
                         table.insert(lines, " ")
-                        addLines(lines, "Aktuell: " .. Rules.valueText(entry, editing))
+                        addLines(lines, QoL.L("r_current", Rules.valueText(entry, editing)))
                         if entry.kind ~= "restriction" then
-                            addLines(lines, "Standard = Voreinstellung des jeweiligen Spielmodus.")
+                            addLines(lines, QoL.L("r_default_hint"))
                         end
                         return { title = entry.label, lines = lines }
                     end
                 })
             end
         end
-        table.insert(items, { text = "---  AKTIONEN  ---", header = true, color = UI.ORANGE })
+        table.insert(items, { text = "---  " .. QoL.L("t_actions") .. "  ---", header = true, color = UI.ORANGE })
         if rulesTarget ~= "all" and roundCount() > 1 then
-            table.insert(items, { text = "DIESE REGELN FÜR ALLE RUNDEN ÜBERNEHMEN", color = UI.GREEN,
-                confirm = "Regeln aller Runden durch diese ersetzen?",
+            table.insert(items, { text = QoL.L("t_copy_all"), color = UI.GREEN,
+                confirm = QoL.L("t_copy_all_confirm"),
                 action = function()
                     local text = storeRules()
                     for index = 1, Tournament.MAX_ROUNDS do
                         draft.rounds[index].rules = text
                     end
                     draft.rules = text
-                    say("Regeln auf alle Runden kopiert.", UI.GREEN)
+                    say(QoL.L("t_copied_all"), UI.GREEN)
                 end })
             if rulesTarget > 1 then
-                table.insert(items, { text = "REGELN VON RUNDE " .. (rulesTarget - 1) .. " ÜBERNEHMEN",
+                table.insert(items, { text = QoL.L("t_take_from", rulesTarget - 1),
                     action = function()
                         editing = Rules.parse(draft.rounds[rulesTarget - 1].rules)
                         storeRules()
-                        say("Regeln von Runde " .. (rulesTarget - 1) .. " übernommen.", UI.GREEN)
+                        say(QoL.L("t_taken_from", rulesTarget - 1), UI.GREEN)
                     end })
             end
         end
-        table.insert(items, { text = "ALLE REGELN AUF STANDARD", color = UI.RED, confirm = "Alle Regeln zurücksetzen?",
+        table.insert(items, { text = QoL.L("t_reset_rules"), color = UI.RED, confirm = QoL.L("t_reset_rules_confirm"),
             action = function()
                 editing = Rules.parse("")
                 storeRules()
-                say("Standardregeln.", UI.GREEN)
+                say(QoL.L("t_reset_rules_done"), UI.GREEN)
             end })
-        table.insert(items, { text = "FERTIG", color = UI.GREEN, action = function()
+        table.insert(items, { text = QoL.L("done"), color = UI.GREEN, action = function()
             page = "setup"
             paint()
             return "painted"
@@ -350,7 +353,7 @@ LUI.createMenu.QoLTournament = function(controller)
         local items = {}
         local preset = presets[presetIndex]
         table.insert(items, {
-            text = "VORLAGE:   < " .. (preset and preset.name or "-") .. " >",
+            text = QoL.L("t_preset", preset and preset.name or "-"),
             color = UI.ORANGE,
             change = function(delta)
                 presetIndex = (presetIndex - 1 + delta) % #presets + 1
@@ -359,11 +362,11 @@ LUI.createMenu.QoLTournament = function(controller)
                 local fresh = Tournament.newDraft(preset)
                 fresh.players = keepPlayers(fresh)
                 draft = fresh
-                say("Vorlage \"" .. preset.name .. "\" geladen.", UI.GREEN)
+                say(QoL.L("t_preset_loaded", preset.name), UI.GREEN)
             end,
             preview = function() return presetPreview(presets[presetIndex]) end
         })
-        table.insert(items, { text = "Format:   < " .. format.title .. " >",
+        table.insert(items, { text = QoL.L("t_format", Tournament.formatTitle(draft.format)),
             change = function(delta)
                 local position = 1
                 for index, id in ipairs(Tournament.formatOrder) do
@@ -373,38 +376,37 @@ LUI.createMenu.QoLTournament = function(controller)
             end,
             preview = function()
                 local lines = {}
-                addLines(lines, FORMAT_INFO[draft.format] or "")
-                return { title = format.title, lines = lines }
+                addLines(lines, QoL.L(FORMAT_INFO[draft.format] or "t_info_bo3"))
+                return { title = Tournament.formatTitle(draft.format), lines = lines }
             end })
-        table.insert(items, { text = "Regeln:   < " .. (draft.rulesMode == "r" and "Je Runde einzeln" or "Für alle Runden gleich") .. " >",
+        table.insert(items, { text = QoL.L("t_rules_mode", QoL.L(draft.rulesMode == "r" and "t_rules_each" or "t_rules_same")),
             change = function()
                 if draft.rulesMode == "a" then
                     draft.rulesMode = "r"
                     for index = 1, Tournament.MAX_ROUNDS do
                         draft.rounds[index].rules = draft.rules
                     end
-                    say("Regeln je Runde - jede Runde startet mit den bisherigen gemeinsamen Regeln.")
+                    say(QoL.L("t_rules_each"))
                 else
                     draft.rulesMode = "a"
                     draft.rules = draft.rounds[1].rules or ""
-                    say("Regeln für alle Runden gleich - Regeln von Runde 1 übernommen.")
+                    say(QoL.L("t_rules_same") .. " - " .. QoL.L("t_taken_from", 1))
                 end
             end,
             preview = function()
                 local lines = {}
-                addLines(lines, "Für alle Runden gleich: ein Regelsatz gilt für jede Runde.")
-                addLines(lines, "Je Runde einzeln: jede Runde hat eigene Regeln, die sich auf andere Runden kopieren lassen.")
-                return { title = "SPIELREGELN", lines = lines }
+                addLines(lines, QoL.L("t_rules_mode_info"))
+                return { title = QoL.L("t_rules_all_title"), lines = lines }
             end })
         if draft.rulesMode == "a" then
-            table.insert(items, { text = "REGELN FÜR ALLE RUNDEN:  " .. shorten(Rules.summary(draft.rules, {}), 34), color = UI.GREEN,
+            table.insert(items, { text = QoL.L("t_rules_all_entry", shorten(Rules.summary(draft.rules, {}), 34)), color = UI.GREEN,
                 action = function() openRules("all"); return "painted" end,
                 preview = function()
                     local lines = {}
                     addLines(lines, Rules.summary(draft.rules, rulesGametypes()))
                     table.insert(lines, " ")
-                    addLines(lines, "A/Enter/Klick: Regeln bearbeiten (Spiel einrichten, Bots, Beschränkungen).")
-                    return { title = "REGELN FÜR ALLE RUNDEN", lines = lines }
+                    addLines(lines, QoL.L("t_rules_open_hint"))
+                    return { title = QoL.L("t_rules_all_title"), lines = lines }
                 end })
         end
         for index = 1, format.rounds do
@@ -412,20 +414,20 @@ LUI.createMenu.QoLTournament = function(controller)
             local function preview()
                 return roundPreview(index, round, Tournament.roundRules(draft, index))
             end
-            table.insert(items, { text = "Runde " .. index .. "   Modus:   < " .. Tournament.nameOf(gametypes, round.gametype) .. " >",
+            table.insert(items, { text = QoL.L("t_round_mode", index, Tournament.nameOf(gametypes, round.gametype)),
                 change = function(delta) round.gametype = Tournament.cycle(gametypes, round.gametype, delta) end,
                 preview = preview })
-            table.insert(items, { text = "Runde " .. index .. "   Karte:   < " .. Tournament.nameOf(maps, round.map) .. " >",
+            table.insert(items, { text = QoL.L("t_round_map", index, Tournament.nameOf(maps, round.map)),
                 change = function(delta) round.map = Tournament.cycle(maps, round.map, delta) end,
                 preview = preview })
             if draft.rulesMode == "r" then
-                table.insert(items, { text = "Runde " .. index .. "   Regeln:  " .. shorten(Rules.summary(round.rules, { round.gametype }), 30),
+                table.insert(items, { text = QoL.L("t_round_rules", index, shorten(Rules.summary(round.rules, { round.gametype }), 30)),
                     color = UI.GREEN,
                     action = function() openRules(index); return "painted" end,
                     preview = preview })
             end
         end
-        local teamText = format.teams and ("TEAMS EINTEILEN  (" .. #draft.players .. " Spieler)") or ("SPIELER  (" .. #draft.players .. ")")
+        local teamText = format.teams and QoL.L("t_teams_entry", #draft.players) or QoL.L("t_players_entry", #draft.players)
         table.insert(items, { text = teamText, action = function() page = "teams"; paint(); return "painted" end,
             preview = function()
                 local lines = {}
@@ -435,9 +437,9 @@ LUI.createMenu.QoLTournament = function(controller)
                 else
                     for _, p in ipairs(draft.players) do addLines(lines, Tournament.playerName(p)) end
                 end
-                return { title = "SPIELER", lines = lines }
+                return { title = QoL.L("t_players_title"), lines = lines }
             end })
-        table.insert(items, { text = "ALS VORLAGE SPEICHERN",
+        table.insert(items, { text = QoL.L("t_save_preset"),
             action = function()
                 UI.askText(self, controller, function(text)
                     local name = Presets.cleanName(text)
@@ -447,34 +449,34 @@ LUI.createMenu.QoLTournament = function(controller)
                         refreshPresets(name)
                         say(result .. ": " .. name, UI.GREEN)
                     else
-                        say("Nicht gespeichert: " .. tostring(result), UI.RED)
+                        say(QoL.L("not_possible", tostring(result)), UI.RED)
                     end
                     paint()
                 end)
             end,
             preview = function()
                 local lines = {}
-                addLines(lines, "Speichert Format, Runden, Karten und Regeln unter einem Namen. Gleicher Name überschreibt.")
+                addLines(lines, QoL.L("t_save_info"))
                 addLines(lines, Presets.storageText())
-                return { title = "VORLAGE SPEICHERN", lines = lines }
+                return { title = QoL.L("t_save_preset"), lines = lines }
             end })
         if preset and not preset.builtin then
-            table.insert(items, { text = "VORLAGE \"" .. preset.name .. "\" LÖSCHEN", color = UI.RED,
-                confirm = "Vorlage \"" .. preset.name .. "\" wirklich löschen?",
+            table.insert(items, { text = QoL.L("t_delete_preset", preset.name), color = UI.RED,
+                confirm = QoL.L("t_delete_confirm", preset.name),
                 action = function()
                     Presets.deleteUser(preset.name)
                     refreshPresets()
-                    say("Vorlage gelöscht.", UI.GREEN)
+                    say(QoL.L("t_preset_deleted"), UI.GREEN)
                 end })
         end
-        table.insert(items, { text = "VORLAGEN-DATEI (EXPORT / IMPORT)",
+        table.insert(items, { text = QoL.L("t_file_entry"),
             action = function() page = "file"; list.selected = 1; paint(); return "painted" end,
             preview = function()
                 local lines = {}
-                addLines(lines, "Vorlagen als Datei sichern oder auf einen anderen Rechner übertragen.")
-                return { title = "VORLAGEN-DATEI", lines = lines }
+                addLines(lines, QoL.L("t_file_info"))
+                return { title = QoL.L("t_file_entry"), lines = lines }
             end })
-        table.insert(items, { text = "TURNIER STARTEN", color = UI.GREEN,
+        table.insert(items, { text = QoL.L("t_start"), color = UI.GREEN,
             action = function()
                 local ok, problem = validateTeams()
                 if not ok then
@@ -485,7 +487,7 @@ LUI.createMenu.QoLTournament = function(controller)
                 if Tournament.launchFrom(self) then
                     return "closed"
                 end
-                say("Turnier angelegt, Start fehlgeschlagen - SPIEL STARTEN drücken.", UI.RED)
+                say(QoL.L("t_start_failed"), UI.RED)
             end,
             preview = function()
                 local lines = {}
@@ -493,8 +495,8 @@ LUI.createMenu.QoLTournament = function(controller)
                     local round = draft.rounds[index]
                     addLines(lines, index .. ". " .. Tournament.nameOf(gametypes, round.gametype) .. " - " .. Tournament.nameOf(maps, round.map))
                 end
-                addLines(lines, "Startet Runde 1 sofort mit Modus, Karte, Regeln und Teams.")
-                return { title = "TURNIER STARTEN", lines = lines }
+                addLines(lines, QoL.L("t_start_info"))
+                return { title = QoL.L("t_start"), lines = lines }
             end })
         return items
     end
@@ -510,16 +512,16 @@ LUI.createMenu.QoLTournament = function(controller)
                 label = label .. "  [" .. p.gamertag .. "]"
             end
             if format.teams then
-                label = TEAM_NAMES[p.team] .. ":  " .. label
+                label = teamName(p.team) .. ":  " .. label
             end
             table.insert(items, { text = label, player = p, color = p.team == 1 and UI.WHITE or UI.GREY,
                 change = format.teams and function() p.team = p.team == 1 and 2 or 1 end or nil })
         end
-        table.insert(items, { text = "LOBBY NEU EINLESEN", action = function()
+        table.insert(items, { text = QoL.L("t_reload_lobby"), action = function()
             local fresh = Tournament.newDraft()
             draft.players = keepPlayers(fresh)
         end })
-        table.insert(items, { text = "ZURÜCK", color = UI.GREEN, action = function() page = "setup"; paint(); return "painted" end })
+        table.insert(items, { text = QoL.L("back"), color = UI.GREEN, action = function() page = "setup"; paint(); return "painted" end })
         return items
     end
 
@@ -527,38 +529,38 @@ LUI.createMenu.QoLTournament = function(controller)
 
     local function fileInstructions()
         local lines = {}
-        addLines(lines, "EXPORT schreibt alle eigenen Vorlagen als Befehle in die Logdatei:")
+        addLines(lines, QoL.L("f_info1"))
         addLines(lines, Presets.logPath())
-        addLines(lines, "Den Block zwischen den ===== Zeilen in eine Textdatei " .. Presets.FILE_NAME .. " kopieren.")
-        addLines(lines, "IMPORT lädt " .. Presets.FILE_NAME .. " aus " .. (QoL.fileLocation and QoL.fileLocation() or "dem Spielordner") .. ".")
-        addLines(lines, "Gleiche Namen werden ersetzt, eingebaute Vorlagen bleiben.")
+        addLines(lines, QoL.L("f_info2", Presets.FILE_NAME))
+        addLines(lines, QoL.L("f_info3", Presets.FILE_NAME, QoL.fileLocation and QoL.fileLocation() or ""))
+        addLines(lines, QoL.L("f_info4"))
         return lines
     end
 
     local function fileItems()
         local preset = presets[presetIndex]
         local items = {}
-        table.insert(items, { text = "VORLAGEN IN DATEI EXPORTIEREN",
+        table.insert(items, { text = QoL.L("f_export"),
             action = function()
                 local count = Presets.exportToLog()
-                say(count .. " Vorlage(n) in die Logdatei geschrieben - siehe rechts.", UI.GREEN)
+                say(QoL.L("f_exported", count), UI.GREEN)
             end,
-            preview = function() return { title = "EXPORT", lines = fileInstructions() } end })
-        table.insert(items, { text = "VORLAGEN AUS " .. string.upper(Presets.FILE_NAME) .. " LADEN",
+            preview = function() return { title = QoL.L("f_title_export"), lines = fileInstructions() } end })
+        table.insert(items, { text = QoL.L("f_import", string.upper(Presets.FILE_NAME)),
             action = function()
-                say("Lade " .. Presets.FILE_NAME .. " ...")
+                say(QoL.L("f_loading", Presets.FILE_NAME))
                 Presets.importFromFile(self, controller, function(count, skipped, problem)
                     if problem then
                         say(problem, UI.RED)
                     else
                         refreshPresets()
-                        say(count .. " Vorlage(n) übernommen" .. (skipped > 0 and (", " .. skipped .. " übersprungen") or "") .. ".", UI.GREEN)
+                        say(QoL.L("f_imported", count, skipped > 0 and QoL.L("f_skipped", skipped) or ""), UI.GREEN)
                         paint()
                     end
                 end)
             end,
-            preview = function() return { title = "IMPORT", lines = fileInstructions() } end })
-        table.insert(items, { text = "VORLAGEN-CODE EINFÜGEN (STRG+V)",
+            preview = function() return { title = QoL.L("f_title_import"), lines = fileInstructions() } end })
+        table.insert(items, { text = QoL.L("f_paste"),
             action = function()
                 UI.askText(self, controller, function(text)
                     local count, skipped, problem = Presets.importCode(text)
@@ -566,25 +568,25 @@ LUI.createMenu.QoLTournament = function(controller)
                         say(problem, UI.RED)
                     else
                         refreshPresets()
-                        say(count .. " Vorlage(n) übernommen" .. (skipped > 0 and (", " .. skipped .. " übersprungen") or "") .. ".", UI.GREEN)
+                        say(QoL.L("f_imported", count, skipped > 0 and QoL.L("f_skipped", skipped) or ""), UI.GREEN)
                     end
                     paint()
                 end, "KEYBOARD_TYPE_FILESHARE_PUBLISH_DESCRIPTION")
             end,
             preview = function()
                 local lines = {}
-                addLines(lines, "Einen Vorlagen-Code (beginnt mit T1~) in das Textfeld einfügen. Mehrere Codes mit | trennen.")
-                return { title = "CODE EINFÜGEN", lines = lines }
+                addLines(lines, QoL.L("f_paste_info"))
+                return { title = QoL.L("f_title_paste"), lines = lines }
             end })
         if preset then
-            table.insert(items, { text = "CODE DER VORLAGE \"" .. preset.name .. "\" ANZEIGEN",
+            table.insert(items, { text = QoL.L("f_show_code", preset.name),
                 preview = function()
                     local lines = {}
                     addLines(lines, Presets.encode(preset))
-                    return { title = "CODE: " .. preset.name, lines = lines }
+                    return { title = QoL.L("f_code_title", preset.name), lines = lines }
                 end })
         end
-        table.insert(items, { text = "ZURÜCK", color = UI.GREEN, action = function() page = "setup"; paint(); return "painted" end })
+        table.insert(items, { text = QoL.L("back"), color = UI.GREEN, action = function() page = "setup"; paint(); return "painted" end })
         return items
     end
 
@@ -596,17 +598,17 @@ LUI.createMenu.QoLTournament = function(controller)
         for index, round in ipairs(t.rounds) do
             local state
             if round.winner == NOT_PLAYED then
-                state = index == t.current and t.active and "als Nächstes" or "offen"
+                state = QoL.L((index == t.current and t.active) and "t_state_next" or "t_state_open")
             elseif round.winner == DRAW then
-                state = (index == t.current and t.active) and "unentschieden - wird wiederholt" or "unentschieden"
+                state = QoL.L((index == t.current and t.active) and "t_state_draw_replay" or "t_state_draw")
             elseif format.teams then
-                state = TEAM_NAMES[round.winner] .. " (" .. round.scores[1] .. ":" .. round.scores[2] .. ")"
+                state = QoL.L("t_state_team", teamName(round.winner), round.scores[1], round.scores[2])
             else
-                state = Tournament.playerName(t.players[round.winner] or { gamertag = "?" }) .. " vorne"
+                state = QoL.L("t_state_ahead", Tournament.playerName(t.players[round.winner] or { gamertag = "?" }))
             end
-            table.insert(items, { text = "Runde " .. index .. ":  " .. Tournament.nameOf(gametypes, round.gametype) .. "  -  " .. state,
+            table.insert(items, { text = QoL.L("t_round", index) .. ":  " .. Tournament.nameOf(gametypes, round.gametype) .. "  -  " .. state,
                 color = UI.GREY,
-                preview = function() return roundPreview(index, round, round.rules, "Ergebnis: " .. state) end })
+                preview = function() return roundPreview(index, round, round.rules, QoL.L("t_result", state)) end })
         end
         local players = {}
         for _, p in ipairs(t.players) do table.insert(players, p) end
@@ -616,28 +618,28 @@ LUI.createMenu.QoLTournament = function(controller)
             return a.kills > b.kills
         end)
         for _, p in ipairs(players) do
-            local prefix = format.teams and (TEAM_NAMES[p.team] .. "  ") or (p.points .. " Pkt  ")
-            table.insert(items, { text = prefix .. Tournament.playerName(p) .. "   " .. p.kills .. " Kills / " .. p.deaths .. " Tode" })
+            local prefix = format.teams and (teamName(p.team) .. "  ") or (p.points .. "  ")
+            table.insert(items, { text = prefix .. Tournament.playerName(p) .. "   " .. p.kills .. " / " .. p.deaths })
         end
         if t.active then
             local round = t.rounds[t.current]
-            table.insert(items, { text = "RUNDE " .. t.current .. " STARTEN", color = UI.GREEN,
+            table.insert(items, { text = QoL.L("t_start_round", t.current), color = UI.GREEN,
                 action = function()
                     if Tournament.launchFrom(self) then
                         return "closed"
                     end
-                    say("Runde konnte nicht gestartet werden.", UI.RED)
+                    say(QoL.L("t_round_failed"), UI.RED)
                 end,
                 preview = function() return round and roundPreview(t.current, round, round.rules) or nil end })
-            table.insert(items, { text = "TURNIER ABBRECHEN", color = UI.RED, confirm = "Turnier wirklich abbrechen?",
+            table.insert(items, { text = QoL.L("t_cancel"), color = UI.RED, confirm = QoL.L("t_cancel_confirm"),
                 action = function()
                     Tournament.cancel()
                     draft = Tournament.newDraft()
                     page = "setup"
-                    say("Turnier abgebrochen.")
+                    say(QoL.L("t_cancelled"))
                 end })
         else
-            table.insert(items, { text = "NEUES TURNIER", color = UI.GREEN, action = function()
+            table.insert(items, { text = QoL.L("t_new"), color = UI.GREEN, action = function()
                 Tournament.cancel()
                 draft = Tournament.newDraft()
                 page = "setup"
@@ -664,43 +666,45 @@ LUI.createMenu.QoLTournament = function(controller)
                     for _, round in ipairs(t.rounds) do
                         if round.winner == 1 or round.winner == 2 then wins[round.winner] = wins[round.winner] + 1 end
                     end
-                    subtitle:setText(name .. format.title .. "  -  " .. TEAM_NAMES[1] .. " " .. wins[1] .. " : " .. wins[2] .. " " .. TEAM_NAMES[2])
+                    subtitle:setText(name .. QoL.L("t_subtitle_score", Tournament.formatTitle(t.format),
+                        teamName(1), wins[1], wins[2], teamName(2)))
                 else
-                    subtitle:setText(name .. format.title .. "  -  Runde " .. t.current .. "/" .. #t.rounds)
+                    subtitle:setText(name .. QoL.L("t_subtitle_round", Tournament.formatTitle(t.format), t.current, #t.rounds))
                 end
             else
                 local winner = Tournament.overallWinner(t)
                 if winner == DRAW or winner == nil then
-                    subtitle:setText(name .. "Turnier beendet - unentschieden")
+                    subtitle:setText(name .. QoL.L("t_winner_draw"))
                 elseif format.teams then
-                    subtitle:setText(name .. "TURNIERSIEGER: " .. Tournament.teamLabel(t, winner))
+                    subtitle:setText(name .. QoL.L("t_winner", Tournament.teamLabel(t, winner)))
                 else
-                    subtitle:setText(name .. "TURNIERSIEGER: " .. Tournament.playerName(t.players[winner]))
+                    subtitle:setText(name .. QoL.L("t_winner", Tournament.playerName(t.players[winner])))
                 end
                 subtitle:setRGB(UI.GREEN[1], UI.GREEN[2], UI.GREEN[3])
             end
             items = standingsItems(t)
-            help:setText("Hoch/Runter: Zeile   A/Enter/Klick: ausführen   B/Esc: zurück")
+            help:setText(QoL.L("hint_list"))
             if Tournament.lastEvent then
                 say(Tournament.lastEvent)
             end
         elseif page == "rules" then
-            local target = rulesTarget == "all" and "alle Runden" or ("Runde " .. rulesTarget .. " (" .. Tournament.nameOf(gametypes, draft.rounds[rulesTarget].gametype) .. ")")
-            subtitle:setText("SPIELREGELN für " .. target .. "   -   grün = geändert, Standard = Voreinstellung des Modus")
+            local target = rulesTarget == "all" and QoL.L("t_rules_target_all")
+                or QoL.L("t_rules_target_round", rulesTarget, Tournament.nameOf(gametypes, draft.rounds[rulesTarget].gametype))
+            subtitle:setText(QoL.L("t_rules_page", target))
             items = rulesItems()
-            help:setText("Hoch/Runter: Einstellung   Links/Rechts oder Klick: ändern   A/Enter: ausführen   B/Esc: fertig")
+            help:setText(QoL.L("hint_rules"))
         elseif page == "teams" then
-            subtitle:setText("Alle Spieler der Lobby (auch LAN).  Links/Rechts: Team wechseln   X/Leertaste: Anzeigenamen ändern")
+            subtitle:setText(QoL.L("t_teams_hint"))
             items = teamItems()
-            help:setText("Hoch/Runter: Spieler   Links/Rechts oder Klick: Team   X/Leertaste: Name   B/Esc: zurück")
+            help:setText(QoL.L("hint_teams"))
         elseif page == "file" then
             subtitle:setText(Presets.storageText())
             items = fileItems()
-            help:setText("Hoch/Runter: Zeile   A/Enter/Klick: ausführen   B/Esc: zurück")
+            help:setText(QoL.L("hint_list"))
         else
-            subtitle:setText("Neues Turnier  -  " .. #draft.players .. " Spieler in der Lobby  -  " .. Presets.storageText())
+            subtitle:setText(QoL.L("t_subtitle_new", #draft.players, Presets.storageText()))
             items = setupItems()
-            help:setText("Hoch/Runter: Zeile   Links/Rechts: ändern   A/Enter/Klick: ausführen   B/Esc: zurück")
+            help:setText(QoL.L("hint_setup"))
         end
         list.setItems(items)
         local current = list.current()
@@ -744,7 +748,7 @@ LUI.createMenu.QoLTournament = function(controller)
             if item.action then
                 if item.confirm and confirmItem ~= item.text then
                     confirmItem = item.text
-                    say(item.confirm .. "   Nochmal A/Enter/Klick: Ja   B/Esc: Nein", UI.RED)
+                    say(item.confirm .. QoL.L("yes_no"), UI.RED)
                     return
                 end
                 confirmItem = nil
@@ -787,7 +791,7 @@ LUI.createMenu.QoLTournament = function(controller)
         end
         updatePreview()
     end
-    UI.button(self, "ZURÜCK", 1000, 672, 170, handlers.back)
+    UI.button(self, QoL.L("back"), 1000, 672, 170, handlers.back)
 
     paint()
     return self

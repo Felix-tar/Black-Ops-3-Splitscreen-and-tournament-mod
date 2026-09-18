@@ -8,7 +8,9 @@
 --   V<attackerId>,<victimId>,<kills>           head-to-head kills
 --   A<p1ProfileId>,<p2ProfileId>               last assignment (0 = none)
 --   I<mode>                                    input device of player 1 (input.lua)
+--   L<code>                                    language of the mod menus (lang.lua)
 require("ui.qol.util")
+require("ui.qol.lang")
 require("ui.qol.storage")
 require("ui.qol.names")
 
@@ -90,6 +92,8 @@ function Data.parse(payload)
             state.assigned[1] = number(fields[2])
         elseif kind == "I" then
             state.inputMode = tonumber(fields[1])
+        elseif kind == "L" then
+            state.language = string.sub(record, 2)
         end
     end
     -- Assignments must point to existing profiles, and never both to one.
@@ -125,6 +129,9 @@ function Data.serialize(state)
     if state.inputMode and state.inputMode ~= -2 then
         table.insert(records, "I" .. state.inputMode)
     end
+    if state.language and state.language ~= "" then
+        table.insert(records, "L" .. state.language)
+    end
     -- Tournaments are kept in a session dvar (tournament.lua), not here.
     return table.concat(records, ";")
 end
@@ -152,12 +159,12 @@ function Data.fit(state, capacity)
         payload = Data.serialize(state)
         if string.len(payload) <= capacity then
             Data.trimmed = Data.trimmed + dropped
-            QoL.log("Speicher voll: " .. dropped .. " Duell-Einträge entfernt")
+            QoL.log("storage full: dropped " .. dropped .. " duel records")
             return payload
         end
     end
     Data.trimmed = Data.trimmed + dropped
-    return nil, "Speicher voll - bitte ein Profil löschen"
+    return nil, QoL.L("st_full")
 end
 
 function Data.load()
@@ -180,7 +187,7 @@ function Data.save()
     local state = Data.get()
     Data.dirtySince = nil
     if not Data.available then
-        Data.lastSaveError = "kein Speicher"
+        Data.lastSaveError = QoL.L("st_no_storage")
         return false
     end
     local payload, reason = Data.fit(state, QoL.storage.capacity or 0)
@@ -191,7 +198,7 @@ function Data.save()
     -- Shown in the lobby status line until a later save succeeds.
     Data.lastSaveError = (not ok) and tostring(err) or nil
     if not ok then
-        QoL.log("Speichern fehlgeschlagen: " .. tostring(err))
+        QoL.log("saving failed: " .. tostring(err))
     end
     return ok
 end
@@ -258,13 +265,13 @@ function Data.renameProfile(id, name)
     local profile = Data.profile(id)
     name = Data.sanitizeName(name)
     if not profile then
-        return false, "Profil nicht gefunden"
+        return false, QoL.L("profiles_not_found")
     elseif name == "" then
-        return false, "kein gültiger Name"
+        return false, QoL.L("profiles_bad_name")
     end
     local existing = Data.findByName(name)
     if existing and existing.id ~= id then
-        return false, "Name \"" .. name .. "\" gibt es schon"
+        return false, QoL.L("lb_exists", name)
     end
     profile.name = name
     Data.save()
@@ -335,11 +342,11 @@ function Data.assign(localClient, profileId)
     local state = Data.get()
     profileId = profileId or 0
     if profileId ~= 0 and not Data.profile(profileId) then
-        return false, "Profil nicht gefunden"
+        return false, QoL.L("profiles_not_found")
     end
     local owner = Data.profileOwner(profileId)
     if owner ~= nil and owner ~= localClient then
-        return false, "schon von Spieler " .. (owner + 1) .. " gewählt"
+        return false, QoL.L("profiles_used_by", owner + 1)
     end
     state.assigned[localClient] = profileId
     -- Profile choices come in bursts (both players at once): write later.
@@ -389,7 +396,7 @@ function Data.displayName(localClient)
             return tag
         end
     end
-    return "Spieler " .. tostring(localClient + 1)
+    return QoL.L("player_n", localClient + 1)
 end
 
 -- Publishes gamertag -> name for the match HUD and the party list: local

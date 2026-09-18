@@ -4,7 +4,7 @@ CoD.QoL = CoD.QoL or {}
 local QoL = CoD.QoL
 
 -- build-dev.ps1 -Release rewrites these two lines in the packaged copy.
-QoL.VERSION = "dev 0.7.0"
+QoL.VERSION = "dev 0.8.1"
 QoL.DEV = true
 QoL.errors = QoL.errors or {}
 QoL.logLines = QoL.logLines or {}

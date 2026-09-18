@@ -2,6 +2,7 @@
 -- CODCASTER so it is reachable with the D-pad. The stock PC control for this
 -- lives in the member list and is effectively mouse-only.
 require("ui.qol.util")
+require("ui.qol.lang")
 
 local QoL = CoD.QoL
 local LobbyButtons = {}
@@ -19,7 +20,7 @@ end
 local function toggleAction(self, element, controller, param, menu)
     QoL.safe("lobbyButtons.toggle", function()
         local wasActive = Engine.IsControllerBeingUsed(GUEST) == true
-        QoL.log(wasActive and "Splitscreen deaktivieren" or "Splitscreen aktivieren")
+        QoL.log(wasActive and "splitscreen off" or "splitscreen on")
         -- LobbySplitscreenToggle may attach a sign-in timer to its first argument.
         LobbySplitscreenToggle(menu or self, controller)
         ForceLobbyButtonUpdate(controller)
@@ -109,11 +110,11 @@ local function insertButton(controller, nav, buttons)
     if isHost then
         table.insert(entries, buildEntry(controller))
     end
-    table.insert(entries, overlayEntry("btnQoLProfiles", "LOKALE PROFILE", "profiles"))
-    table.insert(entries, overlayEntry("btnQoLClassCopy", "KLASSEN KOPIEREN", "classCopy"))
-    table.insert(entries, overlayEntry("btnQoLLeaderboard", "LOKALE BESTENLISTE", "leaderboard"))
+    table.insert(entries, overlayEntry("btnQoLProfiles", QoL.L("lobby_profiles"), "profiles"))
+    table.insert(entries, overlayEntry("btnQoLClassCopy", QoL.L("lobby_classcopy"), "classCopy"))
+    table.insert(entries, overlayEntry("btnQoLLeaderboard", QoL.L("lobby_leaderboard"), "leaderboard"))
     if isHost then
-        table.insert(entries, overlayEntry("btnQoLTournament", "TURNIER", "tournament"))
+        table.insert(entries, overlayEntry("btnQoLTournament", QoL.L("lobby_tournament"), "tournament"))
     end
     local previous = buttons[position - 1]
     -- Keep the group separator where the stock list had it.

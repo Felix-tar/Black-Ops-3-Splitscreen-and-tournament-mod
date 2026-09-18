@@ -9,6 +9,7 @@
 --     of the menu that opens them, so the whole chain stays inside the stage, and
 --     each stock menu only subscribes to the buttons of its own controller.
 require("ui.qol.util")
+require("ui.qol.lang")
 require("ui.qol.ui")
 
 local QoL = CoD.QoL
@@ -23,13 +24,14 @@ Split.CONTENT_LEFT = 50
 Split.CONTENT_WIDTH = 853
 Split.MAX_SCALE = 1
 
+-- Texts come from lang.lua when the hub is built.
 local ENTRIES = {
-    { id = "profile", text = "PROFIL" },
-    { id = "cac", text = "KLASSENEDITOR" },
-    { id = "specialists", text = "SPEZIALISTEN" },
-    { id = "scorestreaks", text = "PUNKTESERIEN" },
-    { id = "classcopy", text = "KLASSEN KOPIEREN" },
-    { id = "done", text = "FERTIG" }
+    { id = "profile", key = "entry_profile" },
+    { id = "cac", key = "entry_cac" },
+    { id = "specialists", key = "entry_specialists" },
+    { id = "scorestreaks", key = "entry_scorestreaks" },
+    { id = "classcopy", key = "entry_classcopy" },
+    { id = "done", key = "done" }
 }
 
 function Split.available()
@@ -72,25 +74,25 @@ LUI.createMenu.QoLSplitHub = function(controller, userData)
     menuRoot:setTopBottom(true, true, 0, 0)
     self:addElement(menuRoot)
 
-    UI.text(menuRoot, "SPIELER " .. tostring(self.qolPlayer + 1), left, 110, 700, 40, UI.ORANGE)
-    UI.text(menuRoot, "Controller " .. tostring(controller), left, 156, 700, 20, UI.GREY)
+    UI.text(menuRoot, QoL.L("split_player", self.qolPlayer + 1), left, 110, 700, 40, UI.ORANGE)
+    UI.text(menuRoot, QoL.L("split_controller", controller), left, 156, 700, 20, UI.GREY)
     local list = UI.newList(menuRoot, left, 210, 640, 52, #ENTRIES)
     local status = UI.text(menuRoot, "", left, 540, 740, 24, UI.WHITE)
-    UI.text(menuRoot, "Steuerkreuz: Auswahl   A / Enter: Öffnen   B / Esc: Fertig", left, 580, 740, 20, UI.GREY)
+    UI.text(menuRoot, QoL.L("hint_hub"), left, 580, 740, 20, UI.GREY)
 
     local profilePage
     local function paint()
         local items = {}
         for _, entry in ipairs(ENTRIES) do
-            local text = entry.text
+            local text = QoL.L(entry.key)
             if entry.id == "profile" then
                 local name = QoL.data and QoL.safe("split.displayName", QoL.data.displayName, self.qolPlayer)
-                text = "PROFIL:  " .. tostring(name or "-")
+                text = QoL.L("split_profile", tostring(name or "-"))
             end
             table.insert(items, { text = text, id = entry.id, color = entry.id == "done" and UI.GREEN or nil })
         end
         list.setItems(items)
-        status:setText(self.qolDone and "FERTIG - warte auf den anderen Spieler (oder Menü öffnen)" or "")
+        status:setText(self.qolDone and QoL.L("split_waiting") or "")
     end
     self.qolPaint = paint
 
@@ -225,7 +227,7 @@ local function addHalf(root, player, controller, autoOpen)
     stage:addElement(hub)
     hub:processEvent({ name = "menu_opened", controller = controller })
 
-    local label = QoL.label(root, "SPIELER " .. tostring(player + 1), 0, 30, 400, 26)
+    local label = QoL.label(root, QoL.L("split_player", player + 1), 0, 30, 400, 26)
     label:setRGB(1, 0.55, 0.12)
     -- Outside the stage so it stays visible above open stock menus.
     hub.qolWarning = QoL.label(root, "", 0, 690, 600, 22)
@@ -316,16 +318,16 @@ function Split.updatePresence(root)
     for player, hub in pairs(root.qolHubs) do
         local connected = Engine.GamepadsConnectedIsActive(player) == true
         if player == 0 then
-            hub.qolWarning:setText(connected and "" or "Kein Controller - Tastatur aktiv")
+            hub.qolWarning:setText(connected and "" or QoL.L("split_no_pad"))
         else
-            hub.qolWarning:setText(connected and "" or "Controller getrennt - bitte wieder verbinden")
+            hub.qolWarning:setText(connected and "" or QoL.L("split_lost_pad"))
         end
     end
     local guestHub = root.qolHubs[1]
     if guestHub and not Engine.IsControllerBeingUsed(guestHub.qolController) then
         root.qolGuestMissingTicks = root.qolGuestMissingTicks + 1
         if root.qolGuestMissingTicks == 1 then
-            QoL.log("Split: Spieler 2 nicht mehr angemeldet")
+            QoL.log("split: player 2 no longer signed in")
         end
         if root.qolGuestMissingTicks >= GUEST_GONE_TICKS then
             Split.close()
@@ -356,7 +358,7 @@ local function unwindHalf(hub)
     if #menus == 0 then
         return
     end
-    QoL.log("Split: schließe " .. #menus .. " Menü(s) von Spieler " .. tostring(hub.qolPlayer + 1))
+    QoL.log("split: closing " .. #menus .. " menu(s) of player " .. tostring(hub.qolPlayer + 1))
     if Engine.IsControllerBeingUsed(hub.qolController) then
         QoL.safe("split.saveLoadout", SaveLoadout, hub, hub.qolController)
     end
@@ -373,7 +375,7 @@ function Split.close()
         return
     end
     Split.current = nil
-    QoL.log("Split-Menü schließen")
+    QoL.log("split menu closing")
     if QoL.data and QoL.data.flush then
         QoL.safe("data.flush", QoL.data.flush)
     end
@@ -399,7 +401,7 @@ function Split.open(lobbyMenu, player, id)
     local host = QoL.controllerForLocalClient(0)
     local autoOpen = {}
     autoOpen[player] = id
-    QoL.log("Split-Menü öffnen: Spieler " .. tostring(player + 1) .. " " .. tostring(id))
+    QoL.log("split menu opening: player " .. tostring(player + 1) .. " " .. tostring(id))
     OpenOverlay(lobbyMenu, "QoLSplitScreen", host, { autoOpen = autoOpen })
     return true
 end
@@ -407,7 +409,7 @@ end
 -- Route the host's lobby buttons through the split menu while player 2 is in.
 local function wrapLobbyButton(button, id)
     if not button or not button.action then
-        QoL.reportError("split", "Lobby-Button fehlt: " .. id)
+        QoL.reportError("split", "lobby button missing: " .. id)
         return
     end
     local stockAction = button.action
@@ -441,7 +443,7 @@ function Split.openProfiles(lobbyMenu)
     if not Split.available() then
         return false
     end
-    QoL.log("Split-Menü öffnen: Profilwahl")
+    QoL.log("split menu opening: profile choice")
     OpenOverlay(lobbyMenu, "QoLSplitScreen", QoL.controllerForLocalClient(0),
         { autoOpen = { [0] = "profiles", [1] = "profiles" } })
     return true

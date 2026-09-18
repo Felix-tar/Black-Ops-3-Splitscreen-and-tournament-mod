@@ -3,6 +3,7 @@
 -- the controller resolved from the local-client mapping, never hardware IDs.
 require("ui.uieditor.menus.Lobby.Lobby")
 require("ui.qol.util")
+require("ui.qol.lang")
 
 local QoL = CoD.QoL
 local label = QoL.label
@@ -55,13 +56,17 @@ local function attachGuestPanel(menu)
     background:setRGB(0.025, 0.035, 0.045)
     background:setAlpha(0.85)
     panel:addElement(background)
-    label(panel, "SPIELER 2", 20, 16, 480, 28)
-    local status = label(panel, "Controller wird zugeordnet", 20, 54, 490, 19)
-    label(panel, "Steuerkreuz: Auswahl   Bestätigen: Öffnen", 20, 292, 490, 18)
+    local titleLabel = label(panel, QoL.L("panel_title"), 20, 16, 480, 28)
+    local status = label(panel, QoL.L("panel_assigning"), 20, 54, 490, 19)
+    local hintLabel = label(panel, QoL.L("hint_panel"), 20, 292, 490, 18)
 
     local selected = 1
     local buttons = {}
-    local names = {"PROFIL WÄHLEN", "KLASSENEDITOR", "SPEZIALISTEN", "PUNKTESERIEN", "KLASSEN KOPIEREN"}
+    local ENTRY_KEYS = { "entry_profile", "entry_cac", "entry_specialists", "entry_scorestreaks", "entry_classcopy" }
+    local names = {}
+    for index, key in ipairs(ENTRY_KEYS) do
+        names[index] = QoL.L(key)
+    end
     local function paint()
         for index, button in ipairs(buttons) do
             if index == selected then button.text:setRGB(1, 0.55, 0.12)
@@ -133,14 +138,26 @@ local function attachGuestPanel(menu)
         return originalProcess(self, event)
     end
 
+    -- After a language change every text of the card is written again.
+    menu.qolApplyPanelTexts = function()
+        titleLabel:setText(QoL.L("panel_title"))
+        hintLabel:setText(QoL.L("hint_panel"))
+        for index, key in ipairs(ENTRY_KEYS) do
+            names[index] = QoL.L(key)
+            if buttons[index] then
+                buttons[index].text:setText(names[index])
+            end
+        end
+    end
+
     return function()
         local guest = guestController()
         panel:setAlpha(customLobby() and 1 or 0)
         if guest then
-            local name = QoL.data and QoL.safe("data.displayName", QoL.data.displayName, 1) or "Eigenes Profil"
-            status:setText(tostring(name) .. " | Controller " .. tostring(guest))
+            local name = QoL.data and QoL.safe("data.displayName", QoL.data.displayName, 1) or ""
+            status:setText(QoL.L("panel_status", tostring(name), tostring(guest)))
         else
-            status:setText("Spieler 2 über Splitscreen beitreten lassen")
+            status:setText(QoL.L("panel_join"))
         end
     end
 end
@@ -165,6 +182,8 @@ local function attach(menu)
         QoL.dataStarted = true
         QoL.safe("data.boot", function()
             local state = QoL.data.load()
+            -- The stored language is known only now: check it again.
+            QoL.safe("lang.reset", QoL.lang.reset)
             if QoL.getSessionValue("qol_started") == "" then
                 QoL.setSessionValue("qol_started", "1")
                 state.boots = state.boots + 1
@@ -188,7 +207,17 @@ local function attach(menu)
         QoL.safe("presets.detectFileLocation", QoL.presets.detectFileLocation, menu)
     end
 
+    local languageVersion = QoL.lang and QoL.lang.version or 0
+
     local function refresh()
+        -- Language changed in the settings: redraw the texts of this screen.
+        if QoL.lang and QoL.lang.version ~= languageVersion then
+            languageVersion = QoL.lang.version
+            QoL.safe("splitlobby.panelTexts", menu.qolApplyPanelTexts)
+            QoL.safe("lobbyButtons.language", function()
+                LuaUtils.ForceLobbyButtonUpdate()
+            end)
+        end
         QoL.safe("splitlobby.panel", refreshPanel)
         if QoL.data and QoL.data.tick then
             QoL.safe("data.tick", QoL.data.tick)
@@ -223,9 +252,9 @@ local function attach(menu)
         end
         local problem = nil
         if #QoL.errors > 0 then
-            problem = "FEHLER: " .. QoL.errors[#QoL.errors]
+            problem = QoL.L("st_error", QoL.errors[#QoL.errors])
         elseif QoL.data and QoL.data.lastSaveError then
-            problem = "Profile nicht gespeichert: " .. QoL.data.lastSaveError
+            problem = QoL.L("st_not_saved", QoL.data.lastSaveError)
         end
         if problem then
             text = (text and (text .. " | ") or ("Splitscreen QoL " .. QoL.VERSION .. " | ")) .. problem
@@ -269,7 +298,7 @@ LUI.createMenu.Lobby = function(controller)
     if not ok then
         QoL.reportError("splitlobby.attach", err)
         -- Expose initialization failure instead of hiding it behind a blank UI.
-        label(menu, "QoL UI Fehler: " .. tostring(err), 70, 640, 1130, 22)
+        label(menu, "QoL UI error: " .. tostring(err), 70, 640, 1130, 22)
     end
     return menu
 end

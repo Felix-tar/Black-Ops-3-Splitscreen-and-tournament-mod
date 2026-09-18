@@ -11,6 +11,7 @@
 -- not a restart of the game) so the small permanent store stays free for
 -- profiles. New formats: add an entry to Tournament.formats.
 require("ui.qol.util")
+require("ui.qol.lang")
 require("ui.qol.data")
 
 local QoL = CoD.QoL
@@ -21,7 +22,9 @@ QoL.tournament = Tournament
 local STATE_DVAR = "qol_tournament"
 local NOT_PLAYED = -1
 local DRAW = 0
-local TEAM_NAMES = { "TEAM A", "TEAM B" }
+local function teamName(team)
+    return QoL.L(team == 2 and "t_team_b" or "t_team_a")
+end
 
 -- Formats ---------------------------------------------------------------------
 
@@ -46,18 +49,16 @@ local function teamKills(t, team)
 end
 
 Tournament.formats = {
-    bo3 = {
-        title = "Teams - Best of 3", teams = true, rounds = 3, winsNeeded = 2
-    },
-    bo5 = {
-        title = "Teams - Best of 5", teams = true, rounds = 5, winsNeeded = 3
-    },
-    ffa = {
-        title = "Jeder gegen jeden - Punkte", teams = false, rounds = 3,
-        -- Placement points per round: last place 1, each place above +1.
-        placementPoints = true
-    }
+    bo3 = { titleKey = "t_format_bo3", teams = true, rounds = 3, winsNeeded = 2 },
+    bo5 = { titleKey = "t_format_bo5", teams = true, rounds = 5, winsNeeded = 3 },
+    -- Placement points per round: last place 1, each place above +1.
+    ffa = { titleKey = "t_format_ffa", teams = false, rounds = 3, placementPoints = true }
 }
+
+function Tournament.formatTitle(id)
+    local format = Tournament.formats[id] or Tournament.formats.bo3
+    return QoL.L(format.titleKey)
+end
 Tournament.formatOrder = { "bo3", "bo5", "ffa" }
 
 -- Team formats: winner team 1/2, DRAW, or nil while undecided.
@@ -153,7 +154,7 @@ end
 function Tournament.save(t)
     Tournament.cache = t or false
     if not QoL.setSessionValue(STATE_DVAR, t and serialize(t) or "") then
-        QoL.log("Turnierstand nur im Menüspeicher (Dvar nicht setzbar)")
+        QoL.log("tournament state only in menu memory (dvar not settable)")
     end
     -- Tournament names show up in party list, scoreboard and killfeed.
     QoL.safe("tournament.publishNames", Data.publishNames)
@@ -219,7 +220,7 @@ function Tournament.teamLabel(t, team)
             table.insert(names, Tournament.playerName(p))
         end
     end
-    return TEAM_NAMES[team] .. " (" .. table.concat(names, ", ") .. ")"
+    return teamName(team) .. " (" .. table.concat(names, ", ") .. ")"
 end
 
 -- Choices ----------------------------------------------------------------------
@@ -236,7 +237,7 @@ function Tournament.gametypes()
     end
     table.sort(result, function(a, b) return a.name < b.name end)
     if #result == 0 then
-        result = { { id = "tdm", name = "Team-Deathmatch" }, { id = "dm", name = "Frei für alle" } }
+        result = { { id = "tdm", name = "Team Deathmatch" }, { id = "dm", name = "Free for All" } }
     end
     return result
 end
@@ -303,7 +304,7 @@ function Tournament.applyTeams(t)
             end
         end
     end
-    QoL.log("Turnier: " .. assigned .. " Spieler in Teams gesetzt")
+    QoL.log("tournament: " .. assigned .. " players assigned to teams")
 end
 
 function Tournament.applyRound()
@@ -331,11 +332,11 @@ function Tournament.applyRound()
     })
 
     local format = Tournament.formats[t.format]
-    local banner = "TURNIER Runde " .. t.current .. "/" .. #t.rounds .. ": "
+    local banner = QoL.L("t_banner", t.current, #t.rounds)
     if format.teams then
         banner = banner .. Tournament.teamLabel(t, 1) .. "  vs  " .. Tournament.teamLabel(t, 2)
     else
-        banner = banner .. "Jeder gegen jeden"
+        banner = banner .. QoL.L("t_banner_ffa")
     end
     if QoL.rules and round.rules and round.rules ~= "" then
         local summary = QoL.safe("tournament.rulesSummary", QoL.rules.summary, round.rules, { round.gametype }) or ""
@@ -361,7 +362,7 @@ function Tournament.launchFrom(menu)
     lobby:addElement(LUI.UITimer.newElementTimer(2000, true, function()
         QoL.safe("tournament.launch", function()
             if lobby.occludedBy then
-                QoL.log("Turnier: Start abgebrochen, anderes Menü offen")
+                QoL.log("tournament: start cancelled, another menu is open")
                 return
             end
             -- Teams again right before the start: joining players get auto teams.
@@ -446,7 +447,7 @@ function Tournament.score(t, report)
     -- A match without any tournament player (e.g. played before the
     -- tournament was set up) must not decide a round.
     if #ranked == 0 then
-        return false, "Letztes Match nicht gewertet: keine Turnierspieler im Ergebnis."
+        return false, QoL.L("t_not_scored")
     end
     for _, entry in ipairs(ranked) do
         entry.player.kills = entry.player.kills + entry.report.kills
@@ -459,12 +460,11 @@ function Tournament.score(t, report)
         round.scores = { a, b }
         if a == b then
             round.winner = DRAW
-            return true, "Runde " .. t.current .. " unentschieden (" .. a .. ":" .. b .. ") - wird wiederholt", true
+            return true, QoL.L("t_event_draw", t.current, a, b), true
         end
         round.winner = a > b and 1 or 2
         local wins = teamWins(t)
-        event = "Runde " .. t.current .. ": " .. TEAM_NAMES[round.winner] .. " gewinnt " .. a .. ":" .. b
-            .. "  -  Stand " .. wins[1] .. ":" .. wins[2]
+        event = QoL.L("t_event_win", t.current, teamName(round.winner), a, b, wins[1], wins[2])
     else
         table.sort(ranked, function(x, y) return x.score > y.score end)
         for place, entry in ipairs(ranked) do
@@ -476,13 +476,13 @@ function Tournament.score(t, report)
             end
         end
         round.scores = { ranked[1].score, ranked[2] and ranked[2].score or 0 }
-        event = "Runde " .. t.current .. ": " .. Tournament.playerName(ranked[1].player) .. " vorne"
+        event = QoL.L("t_event_ahead", t.current, Tournament.playerName(ranked[1].player))
     end
 
     local overall = Tournament.overallWinner(t)
     if overall ~= nil or t.current >= #t.rounds then
         t.active = false
-        event = event .. "  -  Turnier beendet"
+        event = event .. QoL.L("t_event_finished")
     else
         t.current = t.current + 1
     end

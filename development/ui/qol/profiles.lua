@@ -3,6 +3,7 @@
 -- the split screen (splitmenu.lua), so one player can already edit classes
 -- while the other still types a name. Without player 2 it opens full screen.
 require("ui.qol.util")
+require("ui.qol.lang")
 require("ui.qol.ui")
 require("ui.qol.data")
 
@@ -27,19 +28,19 @@ local function buildItems(localClient)
     for _, profile in ipairs(profiles) do
         local item = { text = profile.name, id = profile.id }
         if assigned[localClient] == profile.id then
-            item.text = profile.name .. "  [gewählt]"
+            item.text = QoL.L("profiles_chosen", profile.name)
             item.color = UI.GREEN
         elseif assigned[other] == profile.id then
-            item.text = profile.name .. "  (Spieler " .. (other + 1) .. ")"
+            item.text = QoL.L("profiles_taken", profile.name, other + 1)
             item.color = UI.GREY
             item.blocked = true
         end
         table.insert(items, item)
     end
-    table.insert(items, { text = "+ NEUES PROFIL", id = NEW_ENTRY, color = UI.ORANGE })
-    table.insert(items, { text = "OHNE PROFIL (" .. tostring(QoL.safe("gamertag", function()
+    table.insert(items, { text = QoL.L("profiles_new"), id = NEW_ENTRY, color = UI.ORANGE })
+    table.insert(items, { text = QoL.L("profiles_none", tostring(QoL.safe("gamertag", function()
         return Engine.GetGamertagForController(QoL.controllerForLocalClient(localClient))
-    end) or "Steam-Name") .. ")", id = NONE_ENTRY })
+    end) or "Steam")), id = NONE_ENTRY })
     return items
 end
 
@@ -55,10 +56,10 @@ function Profiles.newPage(menu, controller, localClient, opts)
     root:setAlpha(0)
     menu:addElement(root)
 
-    UI.text(root, "SPIELER " .. (localClient + 1) .. "  -  WER SPIELT?", x, y, 700, 36, UI.ORANGE)
+    UI.text(root, QoL.L("profiles_title", localClient + 1), x, y, 700, 36, UI.ORANGE)
     local status = UI.text(root, "", x, y + 44, 700, 22, UI.GREY)
     local list = UI.newList(root, x, y + 86, 620, 40, rows)
-    local help = UI.text(root, "A/Enter/Klick: wählen   B/Esc: fertig", x, y + 96 + rows * 40, 700, 20, UI.GREY)
+    local help = UI.text(root, QoL.L("hint_profiles"), x, y + 96 + rows * 40, 700, 20, UI.GREY)
 
     local function showProblem(text)
         status:setText(text)
@@ -67,10 +68,10 @@ function Profiles.newPage(menu, controller, localClient, opts)
 
     function page.refresh()
         list.setItems(buildItems(localClient))
-        status:setText("Aktuell: " .. Data.displayName(localClient))
+        status:setText(QoL.L("profiles_current", Data.displayName(localClient)))
         status:setRGB(UI.GREY[1], UI.GREY[2], UI.GREY[3])
         if not Data.available then
-            help:setText("Kein dauerhafter Speicher - Profile gelten nur bis zum Neustart.   B/Esc: fertig")
+            help:setText(QoL.L("profiles_no_storage"))
         end
     end
 
@@ -95,7 +96,7 @@ function Profiles.newPage(menu, controller, localClient, opts)
     local function choose(profileId)
         local ok, reason = Data.assign(localClient, profileId)
         if not ok then
-            showProblem("Nicht möglich: " .. tostring(reason))
+            showProblem(QoL.L("not_possible", tostring(reason)))
             return
         end
         finish()
@@ -116,26 +117,26 @@ function Profiles.newPage(menu, controller, localClient, opts)
                     end
                     local name = Data.sanitizeName(text)
                     if name == "" then
-                        showProblem("Kein gültiger Name.")
+                        showProblem(QoL.L("profiles_bad_name"))
                         return
                     end
                     local existing = Data.findByName(name)
                     local owner = existing and Data.profileOwner(existing.id)
                     if owner ~= nil and owner ~= localClient then
-                        showProblem("Name \"" .. name .. "\" benutzt schon Spieler " .. (owner + 1) .. ".")
+                        showProblem(QoL.L("profiles_name_taken", name, owner + 1))
                         return
                     end
                     local profile, problem = Data.createProfile(name)
                     if profile then
                         choose(profile.id)
                     else
-                        showProblem("Nicht möglich: " .. tostring(problem))
+                        showProblem(QoL.L("not_possible", tostring(problem)))
                     end
                 end)
             elseif item.id == NONE_ENTRY then
                 choose(0)
             elseif item.blocked then
-                showProblem("Nicht möglich: " .. item.text)
+                showProblem(QoL.L("not_possible", item.text))
             else
                 choose(item.id)
             end
@@ -162,7 +163,7 @@ LUI.createMenu.QoLProfiles = function(controller)
         end
     })
     UI.bindButtons(self, controller, page.handlers)
-    UI.button(self, "FERTIG", 1000, 672, 170, page.handlers.back)
+    UI.button(self, QoL.L("done"), 1000, 672, 170, page.handlers.back)
     page.show()
     return self
 end
@@ -211,7 +212,7 @@ if stockUpdateLobbyList then
         return result
     end
 else
-    QoL.reportError("profiles", "CoD.LobbyUtility.UpdateLobbyList nicht gefunden")
+    QoL.reportError("profiles", "CoD.LobbyUtility.UpdateLobbyList not found")
 end
 
 -- Do not call the stock UpdateLobbyList here: it needs the list widget as

@@ -5,6 +5,8 @@ Offline-Mod für lokalen Zweispieler-Splitscreen in **Call of Duty: Black Ops II
 
 **[English](#english)** · **[Deutsch](#deutsch)**
 
+<img src="workshop/thumbnail.png" alt="BO3 Splitscreen QoL" width="320">
+
 ---
 
 ## English
@@ -16,8 +18,10 @@ inside the normal game menus.
 The mod is nothing but mod files (Lua menus + a GSC game script) loaded through the in-game **Mods** menu. No DLLs,
 no extra programs, no Mod Tools on the gaming PC.
 
-> **Note:** all in-game texts of the mod are **German**. This README and the code comments are English/German;
-> the developer documentation [HOW_IT_WORKS.md](HOW_IT_WORKS.md) is German as well.
+> **Languages:** the mod menus speak **English, German, Spanish, Portuguese, Chinese and Hindi**. By default the
+> mod follows the language of the game itself; it can be switched in the settings (Settings → Controls → Gamepad →
+> Splitscreen → *Language*). Chinese and Hindi need fonts the game may not have (see limitations).
+> The developer documentation [HOW_IT_WORKS.md](HOW_IT_WORKS.md) is German.
 
 ### Contents
 
@@ -26,6 +30,7 @@ no extra programs, no Mod Tools on the gaming PC.
 - [Installation](#installation)
 - [Quick start](#quick-start)
 - [Controls in detail](#controls-in-detail)
+- [Settings of the mod](#settings-of-the-mod)
 - [How it works](#how-it-works)
 - [Limitations](#limitations)
 - [Troubleshooting](#troubleshooting)
@@ -37,7 +42,7 @@ no extra programs, no Mod Tools on the gaming PC.
 
 ### Status
 
-Version **0.7.0** (September 2026). ✅ = confirmed in game with real controllers, 🧪 = built and checked
+Version **0.8.1** (September 2026). ✅ = confirmed in game with real controllers, 🧪 = built and checked
 automatically, but not yet confirmed in game. The basics work, the newer parts still need field testing – hence no
 1.0 yet.
 
@@ -65,6 +70,7 @@ automatically, but not yet confirmed in game. The basics work, the newer parts s
 | Mouse support in every mod menu | 🧪 |
 | Split screen adapting to a changed window size | 🧪 |
 | LAN with two PCs (e.g. 2 + 2 players) | 🧪 |
+| Six menu languages, automatic choice from the game language, switch in the settings | 🧪 |
 
 Feedback on the 🧪 entries is welcome (an issue with a screenshot of the status line, see
 [Troubleshooting](#troubleshooting)).
@@ -80,6 +86,9 @@ Feedback on the 🧪 entries is welcome (an issue with a screenshot of the statu
 - A watchdog restores the chosen assignment whenever BO3 loses it (controller reconnected, player 2 joining).
 
 **Menus**
+- **Six languages:** English, German, Spanish, Portuguese, Chinese and Hindi. The mod starts in the language of the
+  game and can be switched in the settings while playing; the menus redraw right away. Chinese and Hindi depend on
+  the fonts of your game installation.
 - **Split screen:** when either player opens the class editor, specialists or scorestreaks, the screen is split
   vertically (player 1 left, player 2 right). Both navigate their own half with their own controller at the same
   time. The halves adapt to aspect ratio and window size.
@@ -144,8 +153,8 @@ stay untouched; with the mod loaded you start with the default classes.
    and signs in.
 3. **"WER SPIELT?"** appears split: each player picks a profile in their half with their own controller (or
    `+ NEUES PROFIL`, typing the name on the PC keyboard). Once both have picked, the split screen closes.
-4. If the controllers are swapped: **Settings → Controls → Gamepad → Splitscreen** → *Eingabegerät Spieler 1* /
-   *Eingabegerät Spieler 2*.
+4. Language and controllers: **Settings → Controls → Gamepad → Splitscreen** - there you find *Input device
+   player 1*, the stock *input device player 2* and the *language* of the mod menus.
 5. Editing classes: one player opens the class editor → the screen splits → both choose **FERTIG** ("done").
 6. Start the match as usual. Afterwards the statistics show up in **LOKALE BESTENLISTE** (local leaderboard).
 
@@ -160,6 +169,26 @@ Keyboard and mouse always control player 1. In every mod menu:
 | Confirm | A / cross | Enter | left click |
 | Enter a name (tournament) | X / square | space | – |
 | Back / done | B / circle | Esc | `[ ZURÜCK ]` / `[ FERTIG ]` |
+
+#### Settings of the mod
+
+**Settings → Controls → Gamepad → Splitscreen** holds three rows:
+
+| Row | Meaning |
+| --- | --- |
+| *Input device player 1* | *Automatic* (a controller player 2 is not using), *keyboard/mouse only*, or one specific controller |
+| *Input device player 2* | the game's own row - the mod adds the swap when both pick the same controller |
+| *Language (Splitscreen QoL mod)* | language of the menus this mod adds |
+
+About the language:
+
+- Without a choice of your own the mod uses the **language of the game**, so its entries match the game's own texts.
+- Supported: English, Deutsch, Espanol, Portugues, Chinese, Hindi. Your choice is stored with the profiles and also
+  applies in the match (scoreboard, killfeed).
+- Switching takes effect right away: the lobby list and the player 2 card are redrawn, and every mod menu opens in
+  the new language. The label of the setting itself changes the next time the settings are opened.
+- **Chinese and Hindi need fonts the game usually does not have** in a German or English installation - the text
+  then stays blank or shows boxes. The selector always lists the languages in Latin letters, so you can switch back.
 
 #### Lobby list (left, below CODCASTER)
 
@@ -336,7 +365,9 @@ They are gone when the game is closed; profiles and statistics live in the stora
   every mode is not confirmed; scoring follows the teams actually played in the match.
 - **Specialists in the split screen:** the 3D character exists only once, so the halves use a dark background.
 - **Entering names** goes through BO3's text field, in practice through the PC keyboard.
-- The mod's menu texts are German.
+- **Chinese and Hindi** use the fonts of the game. A German or English installation usually has no glyphs for them,
+  so the text stays blank or shows boxes - then pick another language in the settings. The selector always lists the
+  languages in Latin letters so it stays readable.
 
 ### Troubleshooting
 
@@ -419,7 +450,8 @@ place.
 **Updates:** on the first upload the launcher creates `mods\bo3_splitscreen_qol\zone\workshop.json` containing the
 Workshop ID. Only with that file does *Publish* update the same Workshop item instead of creating a new one.
 `build-dev.ps1` therefore backs it up to `workshop\bo3_splitscreen_qol\workshop.json` on every build and puts it
-back afterwards – so keep that file in the repository. Update procedure: raise the version →
+back afterwards. Keep that file in your own backup but **not** in a public repository – it contains the full path to
+your thumbnail. Update procedure: raise the version →
 `-Release -Version x.y.z` → test → **Publish** again → add change notes on the Workshop page.
 
 Notes:
@@ -454,6 +486,7 @@ development/                      mod sources (copied into the Mod Tools)
     presets.lua       tournament presets, export/import
     tournament.lua    tournament formats, scoring, starting a round
     tournamentmenu.lua tournament screen with preview
+    lang.lua          language table (6 languages) and QoL.L
     names.lua         name table for lobby and match
     ingame.lua        in match: scoreboard, killfeed
     selftest.lua      self-test of the pure logic
@@ -461,11 +494,12 @@ development/                      mod sources (copied into the Mod Tools)
   zone_source/core_mod.zone, mp_mod.zone zone recipes
 build-dev.ps1                     build (development and release)
 tools/lua_lint.py                 Lua 5.1 parser and global-name check
-workshop/                         saved workshop.json (after the first upload)
+workshop/                         saved workshop.json (local only, not in the repository)
 HOW_IT_WORKS.md                   developer documentation (German)
 docs/                             original requirements, older notes
 investigation/                    research notes and build logs
 release/                          finished ZIP for downloading
+workshop/                         thumbnail and texts for the Steam Workshop entry
 legacy/                           0.2.x leftovers, no longer used
 ```
 
@@ -504,6 +538,11 @@ kopieren, lokale Spielerprofile mit Statistiken, eine lokale Bestenliste und Tur
 Die Mod besteht nur aus Mod-Dateien (Lua-Menüs + GSC-Spielskript), die über das normale **Mods**-Menü von BO3
 geladen werden. Keine DLLs, keine Zusatzprogramme, keine Mod Tools auf dem Spiel-PC.
 
+Die Menüs der Mod sprechen **Englisch, Deutsch, Spanisch, Portugiesisch, Chinesisch und Hindi**. Standardmäßig
+übernimmt die Mod die Sprache des Spiels; umschalten lässt sie sich in den Einstellungen (Einstellungen → Steuerung
+→ Gamepad → Splitscreen → *Sprache*). Chinesisch und Hindi brauchen Schriftzeichen, die das Spiel oft nicht hat
+(siehe Grenzen).
+
 Technische Dokumentation für Mitentwickler: **[HOW_IT_WORKS.md](HOW_IT_WORKS.md)**.
 
 ### Inhalt
@@ -513,6 +552,7 @@ Technische Dokumentation für Mitentwickler: **[HOW_IT_WORKS.md](HOW_IT_WORKS.md
 - [Einrichten](#einrichten)
 - [Schnellstart](#schnellstart)
 - [Bedienung im Detail](#bedienung-im-detail)
+- [Einstellungen der Mod](#einstellungen-der-mod)
 - [Wie es funktioniert](#wie-es-funktioniert)
 - [Grenzen und bekannte Einschränkungen](#grenzen-und-bekannte-einschränkungen)
 - [Fehlersuche](#fehlersuche)
@@ -524,7 +564,7 @@ Technische Dokumentation für Mitentwickler: **[HOW_IT_WORKS.md](HOW_IT_WORKS.md
 
 ### Stand
 
-Version **0.7.0** (September 2026). ✅ = im Spiel mit echten Controllern getestet, 🧪 = gebaut und automatisch
+Version **0.8.1** (September 2026). ✅ = im Spiel mit echten Controllern getestet, 🧪 = gebaut und automatisch
 geprüft, im Spiel aber noch nicht bestätigt. Die Grundfunktionen laufen, die neueren Teile brauchen noch
 Praxistests – deshalb noch keine 1.0.
 
@@ -552,6 +592,7 @@ Praxistests – deshalb noch keine 1.0.
 | Mausbedienung in allen Mod-Menüs | 🧪 |
 | Anpassung des geteilten Bildschirms bei geänderter Fenstergröße | 🧪 |
 | LAN mit zwei Rechnern (z. B. 2 + 2 Spieler) | 🧪 |
+| Sechs Menüsprachen, automatisch passend zur Spielsprache, Umschalter in den Einstellungen | 🧪 |
 
 Rückmeldungen zu den 🧪-Punkten sind willkommen (Issue mit Screenshot der Statuszeile, siehe
 [Fehlersuche](#fehlersuche)).
@@ -568,6 +609,9 @@ Rückmeldungen zu den 🧪-Punkten sind willkommen (Issue mit Screenshot der Sta
   verbunden, Spieler 2 tritt bei).
 
 **Menüs**
+- **Sechs Sprachen:** Englisch, Deutsch, Spanisch, Portugiesisch, Chinesisch und Hindi. Die Mod startet in der
+  Sprache des Spiels und lässt sich im laufenden Spiel in den Einstellungen umschalten; die Menüs zeichnen sich
+  sofort neu. Chinesisch und Hindi hängen von den Schriftarten deiner Installation ab.
 - **Geteilter Bildschirm:** Öffnet einer der beiden Klasseneditor, Spezialisten oder Punkteserien, wird der
   Bildschirm senkrecht geteilt (links Spieler 1, rechts Spieler 2). Beide bedienen ihre Hälfte gleichzeitig mit
   dem eigenen Controller. Die Hälften passen sich an Seitenverhältnis und Fenstergröße an.
@@ -632,8 +676,8 @@ normalen Spiels bleiben unberührt; beim ersten Start mit Mod gelten die Standar
    Controller und meldet sich an.
 3. **WER SPIELT?** erscheint geteilt: Jeder wählt in seiner Hälfte mit seinem Controller ein Profil (oder
    `+ NEUES PROFIL`, Namen tippt man auf der PC-Tastatur). Haben beide gewählt, schließt sich der geteilte Bildschirm.
-4. Falls die Controller vertauscht sind: **Einstellungen → Steuerung → Gamepad → Splitscreen** →
-   *Eingabegerät Spieler 1* / *Eingabegerät Spieler 2*.
+4. Sprache und Controller: **Einstellungen → Steuerung → Gamepad → Splitscreen** - dort stehen *Eingabegerät
+   Spieler 1*, die Original-Zeile *Eingabegerät Spieler 2* und die *Sprache* der Mod-Menüs.
 5. Klassen bearbeiten: Einer öffnet den Klasseneditor → der Bildschirm teilt sich → beide wählen **FERTIG**.
 6. Spiel starten wie gewohnt. Nach dem Match stehen Statistiken in **LOKALE BESTENLISTE**.
 
@@ -648,6 +692,27 @@ Tastatur und Maus steuern immer Spieler 1. In allen Mod-Menüs gilt:
 | Ausführen | A / Kreuz | Enter | Linksklick |
 | Name eingeben (Turnier) | X / Quadrat | Leertaste | – |
 | Zurück / fertig | B / Kreis | Esc | `[ ZURÜCK ]` / `[ FERTIG ]` |
+
+#### Einstellungen der Mod
+
+Unter **Einstellungen → Steuerung → Gamepad → Splitscreen** stehen drei Zeilen:
+
+| Zeile | Bedeutung |
+| --- | --- |
+| *Eingabegerät Spieler 1* | *Automatisch* (ein Controller, den Spieler 2 nicht benutzt), *Nur Tastatur/Maus* oder ein bestimmter Controller |
+| *Eingabegerät Spieler 2* | die Originalzeile des Spiels - die Mod ergänzt den Tausch, wenn beide denselben Controller wählen |
+| *Sprache (Splitscreen-QoL-Mod)* | Sprache der Menüs, die diese Mod ergänzt |
+
+Zur Sprache:
+
+- Ohne eigene Wahl übernimmt die Mod die **Sprache des Spiels**, damit ihre Einträge zu den Originaltexten passen.
+- Verfügbar: Englisch, Deutsch, Spanisch, Portugiesisch, Chinesisch, Hindi. Die Wahl wird bei den Profilen
+  gespeichert und gilt auch im Match (Punkteliste, Killfeed).
+- Der Wechsel wirkt sofort: Lobby-Liste und Spieler-2-Karte werden neu geschrieben, jedes Mod-Menü öffnet in der
+  neuen Sprache. Die Beschriftung der Einstellung selbst ändert sich beim nächsten Öffnen der Einstellungen.
+- **Chinesisch und Hindi brauchen Schriftzeichen, die das Spiel meist nicht hat** (deutsche oder englische
+  Installation) - der Text bleibt dann leer oder zeigt Kästchen. Die Auswahlliste steht immer in lateinischer
+  Schrift, damit du zurückwechseln kannst.
 
 #### Lobby-Liste (links, unter CODCASTER)
 
@@ -828,7 +893,9 @@ Beenden des Spiels sind sie weg; Profile und Statistiken liegen im Speicher oben
 - **Spezialisten im geteilten Bildschirm:** Die 3D-Figur gibt es nur einmal, deshalb haben die Hälften einen dunklen
   Hintergrund.
 - **Namen eingeben** geht über das Texteingabefeld von BO3, also praktisch über die PC-Tastatur.
-- Die Menütexte der Mod sind Deutsch.
+- **Chinesisch und Hindi** nutzen die Schriftarten des Spiels. In einer deutschen oder englischen Installation
+  fehlen diese Zeichen meist, dann bleibt der Text leer oder zeigt Kästchen - in dem Fall in den Einstellungen eine
+  andere Sprache wählen. Die Auswahlliste selbst steht immer in lateinischer Schrift.
 
 ### Fehlersuche
 
@@ -914,7 +981,8 @@ richtigen Ort.
 **Updates:** Beim ersten Upload legt der Launcher `mods\bo3_splitscreen_qol\zone\workshop.json` mit der Workshop-ID
 an. Nur mit dieser Datei aktualisiert *Publish* dasselbe Workshop-Objekt, statt ein neues anzulegen.
 `build-dev.ps1` sichert sie deshalb bei jedem Build nach `workshop\bo3_splitscreen_qol\workshop.json` und legt sie
-danach zurück. Diese Datei also mit ins Repository nehmen. Ablauf für ein Update: Version erhöhen →
+danach zurück. Diese Datei gehört **nicht** ins öffentliche Repository (sie enthält den vollen Pfad zu deinem
+Vorschaubild), aber unbedingt in deine eigene Sicherung. Ablauf für ein Update: Version erhöhen →
 `-Release -Version x.y.z` bauen → testen → im Launcher erneut **Publish** → auf der Workshop-Seite Änderungshinweise
 eintragen.
 
@@ -950,6 +1018,7 @@ development/                      Quellen der Mod (werden in die Mod Tools kopie
     presets.lua       Turniervorlagen, Export/Import
     tournament.lua    Turnierformate, Wertung, Rundenstart
     tournamentmenu.lua Turnier-Oberfläche mit Vorschau
+    lang.lua          Sprachtabelle (6 Sprachen) und QoL.L
     names.lua         Namenstabelle für Lobby und Match
     ingame.lua        Match: Punkteliste, Killfeed
     selftest.lua      Selbsttest der reinen Logik
@@ -957,11 +1026,12 @@ development/                      Quellen der Mod (werden in die Mod Tools kopie
   zone_source/core_mod.zone, mp_mod.zone Zonenrezepte
 build-dev.ps1                     Build (Entwicklung und Release)
 tools/lua_lint.py                 Lua-5.1-Parser und Prüfung globaler Namen
-workshop/                         gesicherte workshop.json (nach dem ersten Upload)
+workshop/                         gesicherte workshop.json (lokal, nicht im Repository)
 HOW_IT_WORKS.md                   Entwicklerdokumentation (Aufbau, Technik, Erweitern)
 docs/                             ursprüngliche Anforderungen, ältere Notizen
 investigation/                    Recherche-Notizen und Build-Logs
 release/                          fertiges ZIP zum Herunterladen
+workshop/                         Vorschaubild und Texte für den Steam-Workshop-Eintrag
 legacy/                           Altbestand 0.2.x, wird nicht mehr benutzt
 ```
 

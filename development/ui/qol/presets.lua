@@ -11,6 +11,7 @@
 -- prints ready-made cfg lines into console_mp.log of the mod folder; copied
 -- into qol_turniere.cfg they are loaded again with IMPORT (exec).
 require("ui.qol.util")
+require("ui.qol.lang")
 require("ui.qol.bigstore")
 require("ui.qol.rules")
 
@@ -29,18 +30,20 @@ Presets.FILE_NAME = FILE_NAME
 local SNIPER = "res:smg+ar+cqb+lmg+pst+lnc+spw"
 local SHOTGUN = "res:smg+ar+lmg+snp+pst+lnc+spw"
 
+-- Built-in preset names stay English in every language: they are also the
+-- identifier used when saving and importing.
 Presets.BUILTIN = {
-    { name = "Klassiker", format = "bo3", rulesMode = "a", rules = "",
+    { name = "Classic", format = "bo3", rulesMode = "a", rules = "",
         rounds = { { gametype = "tdm" }, { gametype = "dom" }, { gametype = "sd" } } },
-    { name = "Scharfschützen", format = "bo3", rulesMode = "a", rules = SNIPER,
+    { name = "Snipers", format = "bo3", rulesMode = "a", rules = SNIPER,
         rounds = { { gametype = "tdm" }, { gametype = "conf" }, { gametype = "tdm" } } },
-    { name = "Nur Kopfschüsse", format = "bo3", rulesMode = "a", rules = "onlyHeadshots:1",
+    { name = "Headshots", format = "bo3", rulesMode = "a", rules = "onlyHeadshots:1",
         rounds = { { gametype = "tdm" }, { gametype = "dom" }, { gametype = "tdm" } } },
     { name = "Hardcore", format = "bo3", rulesMode = "a", rules = "hardcoreMode:1",
         rounds = { { gametype = "tdm" }, { gametype = "sd" }, { gametype = "dom" } } },
-    { name = "Schrotflinten", format = "bo3", rulesMode = "a", rules = SHOTGUN,
+    { name = "Shotguns", format = "bo3", rulesMode = "a", rules = SHOTGUN,
         rounds = { { gametype = "tdm" }, { gametype = "koth" }, { gametype = "tdm" } } },
-    { name = "Jeder gegen jeden", format = "ffa", rulesMode = "a", rules = "",
+    { name = "Free for all", format = "ffa", rulesMode = "a", rules = "",
         rounds = { { gametype = "dm" }, { gametype = "gun" }, { gametype = "dm" } } }
 }
 for _, preset in ipairs(Presets.BUILTIN) do
@@ -167,7 +170,7 @@ function Presets.persist()
     end
     local ok, err = QoL.bigStore.save(STORE_PREFIX .. text)
     if not ok then
-        QoL.log("Vorlagen nicht gespeichert: " .. tostring(err))
+        QoL.log("presets not saved: " .. tostring(err))
     end
     return ok, err
 end
@@ -175,10 +178,10 @@ end
 function Presets.storageText()
     Presets.ensureLoaded()
     if not Presets.persistent then
-        return "Vorlagen gelten nur bis zum Neustart (" .. tostring(QoL.bigStore.status) .. ")"
+        return QoL.L("f_storage_none", tostring(QoL.bigStore.status))
     end
     local used = string.len(STORE_PREFIX .. Presets.encodeList(Presets.user))
-    return "Vorlagenspeicher: " .. used .. " / " .. QoL.bigStore.capacity .. " Zeichen"
+    return QoL.L("f_storage", used, QoL.bigStore.capacity)
 end
 
 function Presets.all()
@@ -210,9 +213,9 @@ end
 function Presets.saveUser(preset)
     preset.name = Presets.cleanName(preset.name)
     if preset.name == "" then
-        return false, "kein gültiger Name"
+        return false, QoL.L("profiles_bad_name")
     elseif Presets.isBuiltinName(preset.name) then
-        return false, "\"" .. preset.name .. "\" ist eine eingebaute Vorlage - bitte anderen Namen wählen"
+        return false, QoL.L("t_preset_builtin", preset.name)
     end
     local list = Presets.ensureLoaded()
     local copy = Presets.decode(Presets.encode(preset))
@@ -234,7 +237,7 @@ function Presets.saveUser(preset)
         Presets.persist()
         return false, err
     end
-    return true, index and "Vorlage überschrieben" or "Vorlage gespeichert"
+    return true, index and QoL.L("t_preset_overwritten") or QoL.L("t_preset_saved")
 end
 
 function Presets.deleteUser(name)
@@ -275,8 +278,8 @@ end
 
 function Presets.logPath()
     local ok, folder = pcall(Engine.DvarString, nil, "fs_game")
-    folder = (ok and folder and folder ~= "") and folder or "mods\\<Modname>"
-    return "<BO3-Ordner>\\" .. string.gsub(folder, "/", "\\") .. "\\console_mp.log"
+    folder = (ok and folder and folder ~= "") and folder or "mods\\<mod>"
+    return "<BO3>\\" .. string.gsub(folder, "/", "\\") .. "\\console_mp.log"
 end
 
 -- Writes all own presets as cfg lines into the console log. Every line starts
@@ -287,12 +290,12 @@ function Presets.exportToLog()
     local function out(line)
         pcall(Engine.PrintError, Enum.consoleLabel.LABEL_DEFAULT, line .. "\n")
     end
-    out(";// ===== BO3 Splitscreen QoL: Turniervorlagen - ab hier in " .. FILE_NAME .. " kopieren =====")
+    out(";// ===== BO3 Splitscreen QoL tournament presets - copy from here into " .. FILE_NAME .. " =====")
     out(";set " .. COUNT_DVAR .. " " .. #list)
     for index, preset in ipairs(list) do
         out(";set " .. CODE_DVAR .. index .. " \"" .. Presets.encode(preset) .. "\"")
     end
-    out(";// ===== Ende Turniervorlagen =====")
+    out(";// ===== end of tournament presets =====")
     return #list
 end
 
@@ -305,7 +308,7 @@ function Presets.importFromFile(timerParent, controller, onDone)
         QoL.safe("presets.import", function()
             local count = tonumber(QoL.getSessionValue(COUNT_DVAR))
             if not count then
-                onDone(0, 0, "Datei " .. FILE_NAME .. " nicht gefunden oder leer")
+                onDone(0, 0, QoL.L("f_not_found", FILE_NAME))
                 return
             end
             local imported = {}
@@ -325,16 +328,16 @@ end
 -- and in the mod folder, each setting its own dvar. Whichever is set tells
 -- where "exec" reads files from.
 local FILE_TEST_DVARS = {
-    { dvar = "qol_exec_root", place = "Spielordner" },
+    { dvar = "qol_exec_root", place = "game" },
     { dvar = "qol_exec_players", place = "players" },
-    { dvar = "qol_exec_mod", place = "Mod-Ordner" }
+    { dvar = "qol_exec_mod", place = "mod" }
 }
 
 function Presets.detectFileLocation(timerParent)
     for _, test in ipairs(FILE_TEST_DVARS) do
         QoL.setSessionValue(test.dvar, "")
     end
-    Presets.fileTest = "läuft"
+    Presets.fileTest = "running"
     pcall(Engine.Exec, QoL.controllerForLocalClient(0), "exec qol_exec_test.cfg")
     timerParent:addElement(LUI.UITimer.newElementTimer(1000, true, function()
         local found = {}
@@ -343,25 +346,25 @@ function Presets.detectFileLocation(timerParent)
                 table.insert(found, test.place)
             end
         end
-        Presets.fileTest = #found > 0 and table.concat(found, "+") or "keine"
+        Presets.fileTest = #found > 0 and table.concat(found, "+") or "none"
         Presets.fileTestPlace = found[1]
-        QoL.log("Datei-Test exec: " .. Presets.fileTest)
+        QoL.log("file test exec: " .. Presets.fileTest)
     end))
 end
 
 function QoL.fileLocation()
     if Presets.fileTestPlace == "players" then
-        return "<BO3-Ordner>\\players"
-    elseif Presets.fileTestPlace == "Mod-Ordner" then
-        return "dem Mod-Ordner"
+        return QoL.L("f_place_players")
+    elseif Presets.fileTestPlace == "mod" then
+        return QoL.L("f_place_mod")
     end
-    return "dem BO3-Spielordner (neben BlackOps3.exe)"
+    return QoL.L("f_place_game")
 end
 
 function Presets.importCode(text)
     local imported = Presets.decodeList(text)
     if #imported == 0 then
-        return 0, 0, "kein gültiger Vorlagen-Code (beginnt mit T1~)"
+        return 0, 0, QoL.L("f_bad_code")
     end
     local added, skipped = Presets.merge(imported)
     return added, skipped, nil

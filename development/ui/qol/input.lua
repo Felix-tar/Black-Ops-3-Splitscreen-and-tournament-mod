@@ -8,6 +8,7 @@
 --   GamepadsConnectedMap(localPlayer, port), GamepadsConnectedMapAny(localPlayer)
 --   GamepadsConnectedUnMap(localPlayer), GamepadsConnectedValidPort(port)
 require("ui.qol.util")
+require("ui.qol.lang")
 
 local QoL = CoD.QoL
 local Input = {}
@@ -23,7 +24,7 @@ local DVAR = "qol_p1_input"
 local DVAR_OFFSET = 10
 
 Input.cooldown = 0
-Input.lastAction = "keine"
+Input.lastAction = "none"
 
 -- The choice is kept permanently in the profile store (record I, data.lua)
 -- and for the running session in a dvar (menus are reloaded after a match).
@@ -64,22 +65,22 @@ end
 function Input.setMode(mode)
     storeMode(tonumber(mode) or Input.MODE_AUTO)
     Input.cooldown = 0
-    QoL.log("Eingabe Spieler 1 = " .. Input.modeName(Input.mode))
+    QoL.log("input player 1 = " .. Input.modeName(Input.mode))
     QoL.safe("input.reconcile", Input.reconcile)
 end
 
 function Input.modeName(mode)
     if mode == Input.MODE_AUTO then
-        return "Automatisch"
+        return QoL.L("set_auto")
     elseif mode == Input.MODE_KEYBOARD then
-        return "Nur Tastatur/Maus"
+        return QoL.L("set_keyboard")
     end
     for name, port in pairs(Engine.GamepadsConnectedPortMapping() or {}) do
         if tonumber(port) == mode then
             return tostring(name)
         end
     end
-    return "Controller-Port " .. tostring(mode)
+    return QoL.L("set_pad_port", mode)
 end
 
 local function connectedPorts()
@@ -123,7 +124,7 @@ local function call(description, fn, ...)
     if ok then
         Input.lastAction = description
     else
-        Input.lastAction = description .. " fehlgeschlagen"
+        Input.lastAction = description .. " failed"
         QoL.reportError("input " .. description, err)
     end
     QoL.log(Input.lastAction)
@@ -137,7 +138,7 @@ local function act(description, fn, ...)
 end
 
 local function playerName(player)
-    return player == HOST and "Spieler 1" or "Spieler 2"
+    return "player " .. (player == HOST and "1" or "2")
 end
 
 function Input.state()
@@ -166,21 +167,21 @@ function Input.assign(player, port)
 
     if otherActive and otherPort == port then
         pcall(Engine.GamepadsConnectedUnMap, other)
-        call(playerName(player) .. " -> Port " .. port, Engine.GamepadsConnectedMap, player, port)
+        call(playerName(player) .. " -> port " .. port, Engine.GamepadsConnectedMap, player, port)
         if myActive and isConnected(myPort) and myPort ~= port then
-            call("Tausch: " .. playerName(other) .. " -> Port " .. myPort,
+            call("swap: " .. playerName(other) .. " -> port " .. myPort,
                 Engine.GamepadsConnectedMap, other, myPort)
             otherResult = myPort
         else
             local spare = firstPortExcept(port)
             if spare then
-                call("Tausch: " .. playerName(other) .. " -> Port " .. spare,
+                call("swap: " .. playerName(other) .. " -> port " .. spare,
                     Engine.GamepadsConnectedMap, other, spare)
                 otherResult = spare
             end
         end
     else
-        call(playerName(player) .. " -> Port " .. port, Engine.GamepadsConnectedMap, player, port)
+        call(playerName(player) .. " -> port " .. port, Engine.GamepadsConnectedMap, player, port)
     end
     Input.cooldown = 3
     return otherResult
@@ -201,14 +202,14 @@ function Input.reconcile()
     if s.guestSignedIn and s.count > 0 and (not s.p2Active or not isConnected(s.p2Port)) then
         local spare = firstPortExcept(s.p1Active and s.p1Port or nil)
         if spare then
-            act("Spieler 2 -> Port " .. spare .. " (wieder verbunden)", Engine.GamepadsConnectedMap, GUEST, spare)
+            act("player 2 -> port " .. spare .. " (reconnected)", Engine.GamepadsConnectedMap, GUEST, spare)
             return
         end
     end
 
     if mode == Input.MODE_KEYBOARD then
         if s.p1Active then
-            act("Spieler 1 -> Tastatur", Engine.GamepadsConnectedUnMap, HOST)
+            act("player 1 -> keyboard", Engine.GamepadsConnectedUnMap, HOST)
         end
         return
     end
@@ -228,13 +229,13 @@ function Input.reconcile()
         if s.count >= 2 and (not s.p1Active or not isConnected(s.p1Port) or s.p1Port == s.p2Port) then
             local spare = firstPortExcept(s.p2Port)
             if spare then
-                act("Spieler 1 -> Port " .. spare .. " (auto)", Engine.GamepadsConnectedMap, HOST, spare)
+                act("player 1 -> port " .. spare .. " (auto)", Engine.GamepadsConnectedMap, HOST, spare)
             end
         end
         -- With a single controller owned by player 2, player 1 keeps the keyboard.
     elseif not s.p1Active and not s.guestSignedIn then
         -- With player 2 signed in, MapAny could grab player 2's reconnected pad.
-        act("Spieler 1 -> Controller (auto)", Engine.GamepadsConnectedMapAny, HOST)
+        act("player 1 -> controller (auto)", Engine.GamepadsConnectedMapAny, HOST)
     end
 end
 
@@ -250,18 +251,18 @@ function Input.setGuestPort(port)
     local mode = Input.getMode()
     if mode >= 0 and mode == port then
         storeMode(otherResult or Input.MODE_AUTO)
-        QoL.log("Spieler 1 folgt dem Tausch: " .. Input.modeName(Input.mode))
+        QoL.log("player 1 follows the swap: " .. Input.modeName(Input.mode))
     end
 end
 
 function Input.debugText()
     local s = Input.state()
     return QoL.VERSION
-        .. " | Pads " .. tostring(s.count)
-        .. " | S1 " .. Input.modeName(Input.getMode())
-        .. ": Port " .. tostring(s.p1Port) .. (s.p1Active and " aktiv" or " -")
-        .. " | S2: Port " .. tostring(s.p2Port) .. (s.p2Active and " aktiv" or " -")
-        .. (s.guestSignedIn and " angemeldet" or "")
+        .. " | pads " .. tostring(s.count)
+        .. " | P1 " .. Input.modeName(Input.getMode())
+        .. ": port " .. tostring(s.p1Port) .. (s.p1Active and " on" or " -")
+        .. " | P2: port " .. tostring(s.p2Port) .. (s.p2Active and " on" or " -")
+        .. (s.guestSignedIn and " signed in" or "")
         .. " | " .. Input.lastAction
 end
 
@@ -278,8 +279,8 @@ end
 -- Settings: Steuerung -> Gamepad -> Splitscreen gets an extra dropdown.
 DataSources.QoLGamepadMapP1 = DataSourceHelpers.ListSetup("PC.QoLGamepadMapP1", function(controller)
     local items = {
-        { models = { value = Input.MODE_AUTO, valueDisplay = "Automatisch" } },
-        { models = { value = Input.MODE_KEYBOARD, valueDisplay = "Nur Tastatur/Maus" } }
+        { models = { value = Input.MODE_AUTO, valueDisplay = QoL.L("set_auto") } },
+        { models = { value = Input.MODE_KEYBOARD, valueDisplay = QoL.L("set_keyboard") } }
     }
     local pads = {}
     for name, port in pairs(Engine.GamepadsConnectedPortMapping() or {}) do
@@ -295,26 +296,63 @@ DataSources.QoLGamepadMapP1 = DataSourceHelpers.ListSetup("PC.QoLGamepadMapP1", 
     return items
 end, true)
 
-local P1_ROW_MODELS = {
-    label = "Eingabegerät Spieler 1",
-    description = "Eingabegerät von Spieler 1 bei aktiviertem Splitscreen. "
-        .. "Automatisch wählt einen Controller, den Spieler 2 nicht benutzt. "
-        .. "Die Tastatur bleibt für Spieler 1 immer zusätzlich aktiv.",
-    profileVarName = "qol_p1_input",
-    profileType = "function",
-    optionController = HOST,
-    datasource = "QoLGamepadMapP1",
-    widgetType = "dropdown",
-    getFunction = function(controller)
-        return Input.getMode()
-    end,
-    setFunction = function(controller, value)
-        QoL.safe("input.setMode", Input.setMode, value)
-    end,
-    disabledFunction = function()
-        return false
+-- Language of the mod menus, right below the input device rows.
+DataSources.QoLLanguage = DataSourceHelpers.ListSetup("PC.QoLLanguage", function(controller)
+    local items = {}
+    for index, code in ipairs(QoL.lang.ORDER) do
+        table.insert(items, { models = { value = index, valueDisplay = QoL.lang.NAMES[code] or code } })
     end
-}
+    return items
+end, true)
+
+local function rowModels()
+    return {
+        input = {
+            label = QoL.L("set_input_label"),
+            description = QoL.L("set_input_desc"),
+            profileVarName = "qol_p1_input",
+            profileType = "function",
+            optionController = HOST,
+            datasource = "QoLGamepadMapP1",
+            widgetType = "dropdown",
+            getFunction = function(controller)
+                return Input.getMode()
+            end,
+            setFunction = function(controller, value)
+                QoL.safe("input.setMode", Input.setMode, value)
+            end,
+            disabledFunction = function()
+                return false
+            end
+        },
+        language = {
+            label = QoL.L("set_lang_label"),
+            description = QoL.L("set_lang_desc"),
+            profileVarName = "qol_lang",
+            profileType = "function",
+            optionController = HOST,
+            datasource = "QoLLanguage",
+            widgetType = "dropdown",
+            getFunction = function(controller)
+                local current = QoL.lang.current()
+                for index, code in ipairs(QoL.lang.ORDER) do
+                    if code == current then
+                        return index
+                    end
+                end
+                return 1
+            end,
+            setFunction = function(controller, value)
+                QoL.safe("lang.set", function()
+                    QoL.lang.set(QoL.lang.ORDER[tonumber(value) or 1])
+                end)
+            end,
+            disabledFunction = function()
+                return false
+            end
+        }
+    }
+end
 
 local function injectP1Row(controller, list)
     local items = list["PC.OptionGamepadSettingsPC"]
@@ -329,21 +367,28 @@ local function injectP1Row(controller, list)
             QoL.safe("input.setGuestPort", Input.setGuestPort, value)
         end)
     else
-        QoL.reportError("input", "Zeile Eingabegerät Spieler 2 nicht gefunden")
+        QoL.reportError("input", "player 2 input row not found")
     end
 
     local base = ListHelper_GetListHelperModel(list, true)
-    local model = Engine.GetModel(base, "qolP1Input")
-    if model then
-        Engine.UnsubscribeAndFreeModel(model)
+    local rows = rowModels()
+    -- Player 1 directly above the stock player 2 row, language below it.
+    local function addRow(name, definition, position)
+        local model = Engine.GetModel(base, name)
+        if model then
+            Engine.UnsubscribeAndFreeModel(model)
+        end
+        model = Engine.CreateModel(base, name)
+        ListHelper_CreateModelsFromTable(model, definition)
+        local entry = { model = model, properties = CoD.PCUtil.DependantDropdownProperties }
+        if position then
+            table.insert(items, position, entry)
+        else
+            table.insert(items, entry)
+        end
     end
-    model = Engine.CreateModel(base, "qolP1Input")
-    ListHelper_CreateModelsFromTable(model, P1_ROW_MODELS)
-    -- Place player 1 directly above the player 2 row.
-    table.insert(items, #items, {
-        model = model,
-        properties = CoD.PCUtil.DependantDropdownProperties
-    })
+    addRow("qolP1Input", rows.input, #items)
+    addRow("qolLanguage", rows.language)
 end
 
 local gamepadSettings = DataSources.OptionGamepadSettingsPC
@@ -354,5 +399,5 @@ if gamepadSettings and gamepadSettings.prepare then
         QoL.safe("input.injectP1Row", injectP1Row, controller, list)
     end
 else
-    QoL.reportError("input", "OptionGamepadSettingsPC nicht gefunden")
+    QoL.reportError("input", "OptionGamepadSettingsPC not found")
 end

@@ -10,6 +10,7 @@ rawfile,zm_mod.cfg
 rawfile,ui/uieditor/menus/core_frontend_patch_require.lua
 rawfile,ui/uieditor/menus/core_patch_require.lua
 rawfile,ui/qol/util.lua
+rawfile,ui/qol/lang.lua
 rawfile,ui/qol/names.lua
 rawfile,ui/qol/ingame.lua
 rawfile,ui/qol/input.lua

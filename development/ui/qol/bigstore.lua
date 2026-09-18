@@ -11,6 +11,7 @@
 -- (magic, length, Fletcher-16 checksum); a changed layout or reset fields
 -- therefore read as "invalid" instead of garbage.
 require("ui.qol.util")
+require("ui.qol.lang")
 
 local QoL = CoD.QoL
 local BigStore = {}
@@ -23,7 +24,7 @@ local MAX_WIDTH = 16
 local MAGIC = 20807 -- "QG"
 local HEADER_BYTES = 6
 
-BigStore.status = "nicht geladen"
+BigStore.status = "not loaded"
 BigStore.capacity = 0
 
 -- Field names of one custom class, as used by Engine.Get/SetClassItem.
@@ -161,7 +162,7 @@ function BigStore.init()
     end
     local buffer = ready and Engine.StorageGetBuffer(controller, Enum.StorageFileType[FILE_TYPE])
     if not buffer then
-        BigStore.status = "Datei nicht bereit"
+        BigStore.status = "file not ready"
         return false
     end
     -- All classes share one DDL struct: probe class 0 of the first set.
@@ -191,14 +192,14 @@ function BigStore.init()
     end
     BigStore.capacity = math.floor(bits / 8) - HEADER_BYTES
     if BigStore.capacity < 64 then
-        BigStore.status = "zu klein (" .. BigStore.capacity .. ")"
+        BigStore.status = "too small (" .. BigStore.capacity .. ")"
         BigStore.capacity = 0
         return false
     end
     BigStore.controller = controller
     BigStore.fields = fields
     BigStore.widths = widths
-    BigStore.status = #layout .. " Felder/Klasse, " .. BigStore.capacity .. " Bytes"
+    BigStore.status = #layout .. " fields/class, " .. BigStore.capacity .. " bytes"
     return true
 end
 
@@ -220,18 +221,18 @@ function BigStore.load()
     local header = BigStore.unpack(BigStore.widths, values, HEADER_BYTES)
     local magic = (header[1] or 0) * 256 + (header[2] or 0)
     if magic ~= MAGIC then
-        BigStore.state = "leer"
+        BigStore.state = "empty"
         return ""
     end
     local length = (header[3] or 0) * 256 + (header[4] or 0)
     local stored = (header[5] or 0) * 256 + (header[6] or 0)
     if length > BigStore.capacity then
-        BigStore.state = "ungültig (Länge)"
+        BigStore.state = "invalid (length)"
         return ""
     end
     local bytes = BigStore.unpack(BigStore.widths, values, HEADER_BYTES + length)
     if #bytes < HEADER_BYTES + length or BigStore.checksum(bytes, HEADER_BYTES + 1, HEADER_BYTES + length) ~= stored then
-        BigStore.state = "ungültig (Prüfsumme)"
+        BigStore.state = "invalid (checksum)"
         return ""
     end
     local chars = {}
@@ -244,11 +245,11 @@ end
 
 function BigStore.save(text)
     if not BigStore.fields and not BigStore.init() then
-        return false, "kein Zusatzspeicher"
+        return false, "no extra storage"
     end
     local length = string.len(text)
     if length > BigStore.capacity then
-        return false, "Speicher voll (" .. length .. "/" .. BigStore.capacity .. ")"
+        return false, QoL.L("st_full_size", length, BigStore.capacity)
     end
     local bytes = { 0, 0, math.floor(length / 256), length % 256, 0, 0 }
     for index = 1, length do
@@ -259,7 +260,7 @@ function BigStore.save(text)
     bytes[5], bytes[6] = math.floor(sum / 256), sum % 256
     local values = BigStore.pack(BigStore.widths, bytes)
     if not values then
-        return false, "Packen fehlgeschlagen"
+        return false, "packing failed"
     end
     for index, value in pairs(values) do
         pcall(function() BigStore.fields[index]:set(value) end)

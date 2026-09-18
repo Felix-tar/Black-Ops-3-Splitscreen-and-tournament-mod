@@ -1,6 +1,7 @@
 -- Local leaderboard of all local profiles plus head-to-head records and
 -- profile management (rename, reset statistics, delete).
 require("ui.qol.util")
+require("ui.qol.lang")
 require("ui.qol.ui")
 require("ui.qol.data")
 require("ui.qol.stats")
@@ -13,11 +14,11 @@ local Leaderboard = {}
 QoL.leaderboard = Leaderboard
 
 local SORTS = {
-    { title = "Siege", value = function(p) return p.wins end },
-    { title = "K/D", value = function(p) return Stats.kd(p) end },
-    { title = "Kills", value = function(p) return p.kills end },
-    { title = "Kopfschüsse", value = function(p) return p.headshots end },
-    { title = "Spiele", value = function(p) return p.matches end }
+    { key = "lb_sort_wins", value = function(p) return p.wins end },
+    { key = "lb_sort_kd", value = function(p) return Stats.kd(p) end },
+    { key = "lb_sort_kills", value = function(p) return p.kills end },
+    { key = "lb_sort_headshots", value = function(p) return p.headshots end },
+    { key = "lb_sort_matches", value = function(p) return p.matches end }
 }
 
 local function pad(text, width)
@@ -35,11 +36,12 @@ LUI.createMenu.QoLLeaderboard = function(controller)
     local mode = "profiles"
     local confirming = nil
 
-    UI.text(self, "LOKALE BESTENLISTE", 110, 56, 900, 46, UI.ORANGE)
+    UI.text(self, QoL.L("lb_title"), 110, 56, 900, 46, UI.ORANGE)
     local sortLabel = UI.text(self, "", 110, 106, 560, 22, UI.GREY)
     local usageLabel = UI.text(self, "", 700, 106, 470, 22, UI.GREY, Enum.LUIAlignment.LUI_ALIGNMENT_RIGHT)
-    UI.text(self, pad("#", 4) .. pad("NAME", 16) .. pad("SPIELE", 8) .. pad("SIEGE", 7) .. pad("KILLS", 7)
-        .. pad("TODE", 7) .. pad("K/D", 7) .. "KOPFSCH.", 110, 146, 1060, 24, UI.GREY)
+    UI.text(self, pad("#", 4) .. pad(QoL.L("lb_col_name"), 16) .. pad(QoL.L("lb_col_matches"), 9)
+        .. pad(QoL.L("lb_col_wins"), 7) .. pad(QoL.L("lb_col_kills"), 7) .. pad(QoL.L("lb_col_deaths"), 8)
+        .. pad(QoL.L("lb_col_kd"), 7) .. QoL.L("lb_col_headshots"), 110, 146, 1060, 24, UI.GREY)
     local list = UI.newList(self, 110, 176, 1060, 32, 8)
     local sectionTitle = UI.text(self, "", 110, 440, 700, 30, UI.ORANGE)
     local duelRows = {}
@@ -61,10 +63,9 @@ LUI.createMenu.QoLLeaderboard = function(controller)
 
     local function paintUsage()
         local used, capacity = Data.usage()
-        local text = Data.available and ("Speicher: " .. used .. " / " .. capacity .. " Zeichen")
-            or "Kein dauerhafter Speicher - nur bis zum Neustart"
+        local text = Data.available and QoL.L("lb_storage", used, capacity) or QoL.L("lb_storage_none")
         if Data.trimmed > 0 then
-            text = text .. "  (alte Duelle gekürzt)"
+            text = text .. QoL.L("lb_storage_trimmed")
         end
         usageLabel:setText(text)
         local color = (not Data.available or (capacity > 0 and used > capacity * 0.85)) and UI.RED or UI.GREY
@@ -76,11 +77,10 @@ LUI.createMenu.QoLLeaderboard = function(controller)
         if mode ~= "profiles" then
             return
         end
-        sectionTitle:setText("DUELLE")
+        sectionTitle:setText(QoL.L("lb_duels"))
         local item = list.current()
         if not item or not item.profile then
-            duelRows[1]:setText(#Data.get().profiles == 0
-                and "Noch keine Profile. Beim Aktivieren des Splitscreens oder mit + NEUES PROFIL anlegen." or "")
+            duelRows[1]:setText(#Data.get().profiles == 0 and QoL.L("lb_no_profiles") or "")
             return
         end
         local me = item.profile
@@ -89,21 +89,21 @@ LUI.createMenu.QoLLeaderboard = function(controller)
             if other.id ~= me.id and line <= #duelRows then
                 local won, lost = Data.vsKills(me.id, other.id), Data.vsKills(other.id, me.id)
                 if won + lost > 0 then
-                    duelRows[line]:setText(me.name .. " gegen " .. other.name .. ":   " .. won .. " Kills  /  " .. lost .. " Tode")
+                    duelRows[line]:setText(QoL.L("lb_duel_line", me.name, other.name, won, lost))
                     line = line + 1
                 end
             end
         end
         if line == 1 then
-            duelRows[1]:setText(me.name .. ": noch keine Duelle gegen andere Profile.")
+            duelRows[1]:setText(QoL.L("lb_no_duels", me.name))
         end
     end
 
     local function paintHelp()
         if mode == "actions" then
-            help:setText("Hoch/Runter: Aktion   A/Enter/Klick: ausführen   B/Esc: zurück")
+            help:setText(QoL.L("hint_actions"))
         else
-            help:setText("Hoch/Runter: Profil   Links/Rechts: Sortierung   A/Enter/Klick: Profil bearbeiten   B/Esc: zurück")
+            help:setText(QoL.L("hint_leaderboard"))
         end
     end
 
@@ -118,36 +118,36 @@ LUI.createMenu.QoLLeaderboard = function(controller)
     local function openActions(profile)
         mode = "actions"
         confirming = nil
-        sectionTitle:setText("PROFIL " .. profile.name)
+        sectionTitle:setText(QoL.L("lb_profile", profile.name))
         for _, row in ipairs(duelRows) do row:setText("") end
         actions.setItems({
-            { text = "UMBENENNEN", run = function()
+            { text = QoL.L("lb_rename"), run = function()
                 UI.askText(self, controller, function(text)
                     local ok, reason = Data.renameProfile(profile.id, text)
                     if ok then
-                        say("Umbenannt in " .. profile.name .. ".", UI.GREEN)
+                        say(QoL.L("lb_renamed", profile.name), UI.GREEN)
                     else
-                        say("Nicht möglich: " .. tostring(reason), UI.RED)
+                        say(QoL.L("not_possible", tostring(reason)), UI.RED)
                     end
                     closeActions()
                     refresh()
                 end)
             end },
-            { text = "STATISTIK ZURÜCKSETZEN", color = UI.RED, confirm = "Statistik von " .. profile.name .. " auf 0 setzen?",
+            { text = QoL.L("lb_reset"), color = UI.RED, confirm = QoL.L("lb_reset_confirm", profile.name),
                 run = function()
                     Data.resetStats(profile.id)
-                    say("Statistik von " .. profile.name .. " zurückgesetzt.", UI.GREEN)
+                    say(QoL.L("lb_reset_done", profile.name), UI.GREEN)
                     closeActions()
                     refresh()
                 end },
-            { text = "PROFIL LÖSCHEN", color = UI.RED, confirm = "Profil " .. profile.name .. " endgültig löschen?",
+            { text = QoL.L("lb_delete"), color = UI.RED, confirm = QoL.L("lb_delete_confirm", profile.name),
                 run = function()
                     Data.deleteProfile(profile.id)
-                    say("Profil " .. profile.name .. " gelöscht.", UI.GREEN)
+                    say(QoL.L("lb_deleted", profile.name), UI.GREEN)
                     closeActions()
                     refresh()
                 end },
-            { text = "ABBRECHEN", run = function() say(""); closeActions() end }
+            { text = QoL.L("cancel"), run = function() say(""); closeActions() end }
         })
         actions.select(1)
         paintHelp()
@@ -157,15 +157,15 @@ LUI.createMenu.QoLLeaderboard = function(controller)
         UI.askText(self, controller, function(text)
             local name = Data.sanitizeName(text)
             if name == "" then
-                say("Kein gültiger Name.", UI.RED)
+                say(QoL.L("profiles_bad_name"), UI.RED)
             elseif Data.findByName(name) then
-                say("Profil " .. name .. " gibt es schon.", UI.RED)
+                say(QoL.L("lb_exists", name), UI.RED)
             else
                 local profile, reason = Data.createProfile(name)
                 if profile then
-                    say("Profil " .. name .. " angelegt.", UI.GREEN)
+                    say(QoL.L("lb_created", name), UI.GREEN)
                 else
-                    say("Nicht möglich: " .. tostring(reason), UI.RED)
+                    say(QoL.L("not_possible", tostring(reason)), UI.RED)
                 end
             end
             refresh()
@@ -174,7 +174,7 @@ LUI.createMenu.QoLLeaderboard = function(controller)
 
     refresh = function()
         local sort = SORTS[sortIndex]
-        sortLabel:setText("Sortiert nach: < " .. sort.title .. " >")
+        sortLabel:setText(QoL.L("lb_sort", QoL.L(sort.key)))
         local sorted = {}
         for _, profile in ipairs(Data.get().profiles) do
             table.insert(sorted, profile)
@@ -192,7 +192,7 @@ LUI.createMenu.QoLLeaderboard = function(controller)
                     .. pad(p.deaths, 7) .. pad(Stats.kd(p), 7) .. p.headshots
             })
         end
-        table.insert(items, { text = "+ NEUES PROFIL", color = UI.GREEN, create = true })
+        table.insert(items, { text = QoL.L("profiles_new"), color = UI.GREEN, create = true })
         list.setItems(items)
         paintUsage()
         paintHelp()
@@ -227,7 +227,7 @@ LUI.createMenu.QoLLeaderboard = function(controller)
                 if not action then return end
                 if action.confirm and confirming ~= action then
                     confirming = action
-                    say(action.confirm .. "   A/Enter/Klick: Ja   B/Esc: Nein", UI.RED)
+                    say(action.confirm .. QoL.L("yes_no"), UI.RED)
                     return
                 end
                 confirming = nil
@@ -274,7 +274,7 @@ LUI.createMenu.QoLLeaderboard = function(controller)
         end
     end
     UI.onClick(sortLabel, function(button) cycleSort(button == "right" and -1 or 1) end)
-    UI.button(self, "ZURÜCK", 1000, 672, 170, handlers.back)
+    UI.button(self, QoL.L("back"), 1000, 672, 170, handlers.back)
 
     refresh()
     return self

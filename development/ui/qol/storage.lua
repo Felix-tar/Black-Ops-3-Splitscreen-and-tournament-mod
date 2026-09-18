@@ -11,6 +11,7 @@
 --
 -- Layout: all slots concatenated = "Q2|<length>|<payload>".
 require("ui.qol.util")
+require("ui.qol.lang")
 
 local QoL = CoD.QoL
 local Storage = {}
@@ -23,7 +24,7 @@ local SOURCES = {
     { name = "mp-league", fileType = "STORAGE_MP_LOADOUTS_OFFLINE", root = "leagueCacLoadouts" }
 }
 
-Storage.status = "nicht geladen"
+Storage.status = "not loaded"
 Storage.capacity = 0
 
 local function hostController()
@@ -82,7 +83,7 @@ function Storage.init()
     local controller = hostController()
     local slots = discoverSlots(controller)
     if #slots == 0 then
-        Storage.status = "kein Speicher gefunden"
+        Storage.status = "no storage found"
         return false
     end
 
@@ -96,7 +97,7 @@ function Storage.init()
         slots[1].slot:set(original)
     end)
     if not ok or maxLength < 8 then
-        Storage.status = "Speicher nicht beschreibbar"
+        Storage.status = "storage not writable"
         return false
     end
 
@@ -113,7 +114,7 @@ function Storage.init()
         end
     end
     Storage.status = table.concat(sourceNames, "+") .. " " .. #slots .. "x" .. maxLength .. "=" .. Storage.capacity
-    QoL.log("Speicher " .. Storage.status)
+    QoL.log("storage " .. Storage.status)
     return true
 end
 
@@ -137,10 +138,10 @@ end
 
 function Storage.save(payload)
     if not Storage.slots and not Storage.init() then
-        return false, "kein Speicher"
+        return false, QoL.L("st_no_storage")
     end
     if string.len(payload) > Storage.capacity then
-        return false, "zu groß (" .. string.len(payload) .. "/" .. Storage.capacity .. ")"
+        return false, QoL.L("st_full_size", string.len(payload), Storage.capacity)
     end
     local raw = MAGIC .. string.len(payload) .. "|" .. payload
     local length = Storage.slotLength

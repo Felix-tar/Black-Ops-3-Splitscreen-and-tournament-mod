@@ -3,6 +3,7 @@
 -- slot list is the stock "clear loadout" list, so no raw profile data is touched.
 -- Opened from the lobby (KLASSEN KOPIEREN), the player 2 card and the split menu.
 require("ui.qol.util")
+require("ui.qol.lang")
 require("ui.qol.ui")
 
 local QoL = CoD.QoL
@@ -37,7 +38,7 @@ function ClassCopy.className(controller, classNum)
     if ok and type(name) == "string" and name ~= "" then
         return name
     end
-    return "Klasse " .. tostring(classNum + 1)
+    return QoL.L("cc_confirm_one", classNum + 1)
 end
 
 local function itemName(controller, classNum, slot)
@@ -90,7 +91,7 @@ end
 function ClassCopy.copy(sourceController, sourceClass, targetController, targetClass)
     copySlots(sourceController, sourceClass, targetController, targetClass)
     finish(targetController)
-    QoL.log("Klasse " .. (sourceClass + 1) .. " kopiert")
+    QoL.log("class " .. (sourceClass + 1) .. " copied")
 end
 
 -- Copies every class the target profile has room for; returns the count.
@@ -100,7 +101,7 @@ function ClassCopy.copyAll(sourceController, targetController)
         copySlots(sourceController, classNum, targetController, classNum)
     end
     finish(targetController)
-    QoL.log("Alle " .. count .. " Klassen kopiert")
+    QoL.log("all " .. count .. " classes copied")
     return count
 end
 
@@ -224,7 +225,7 @@ local function newPreview(parent, x, y)
         header:setText(title)
         local ok, info = pcall(ClassCopy.classInfo, controller, classNum)
         if not ok or not info then
-            className:setText("Vorschau nicht verfügbar")
+            className:setText(QoL.L("cc_preview_none"))
             single:setAlpha(0)
             return
         end
@@ -233,7 +234,7 @@ local function newPreview(parent, x, y)
         for key, weapon in pairs(weapons) do
             local slot = info[key]
             UI.setImage(weapon.image, slot.image)
-            weapon.name:setText(slot.empty and "- leer -" or slot.name)
+            weapon.name:setText(slot.empty and QoL.L("cc_empty") or slot.name)
             for index, image in ipairs(weapon.attachments) do
                 UI.setImage(image, info.attachments[key][index].image)
             end
@@ -255,7 +256,7 @@ local function newPreview(parent, x, y)
     function preview.showAll(title, controller)
         single:setAlpha(0)
         header:setText(title)
-        className:setText("Alle Klassen")
+        className:setText(QoL.L("cc_all_classes"))
         clearList()
         local count = math.min(ClassCopy.classCount(controller), #listRows)
         for classNum = 0, count - 1 do
@@ -276,7 +277,10 @@ end
 
 local function playerLabel(localClient)
     local name = QoL.data and QoL.safe("classCopy.name", QoL.data.displayName, localClient)
-    return "Spieler " .. (localClient + 1) .. (name and ("  (" .. name .. ")") or "")
+    if name then
+        return QoL.L("player_named", localClient + 1, name)
+    end
+    return QoL.L("player_n", localClient + 1)
 end
 
 LUI.createMenu.QoLClassCopy = function(controller, userData)
@@ -295,7 +299,7 @@ LUI.createMenu.QoLClassCopy = function(controller, userData)
 
     -- Everything stays within menu x 50..903: that part is visible in a
     -- half of the split screen.
-    UI.text(self, "KLASSEN KOPIEREN", 70, 28, 800, 40, UI.ORANGE)
+    UI.text(self, QoL.L("cc_title"), 70, 28, 800, 40, UI.ORANGE)
     local rows = {}
     for index = 1, ROWS do
         rows[index] = UI.text(self, "", 70, 76 + (index - 1) * 37, 820, 30)
@@ -303,7 +307,7 @@ LUI.createMenu.QoLClassCopy = function(controller, userData)
     local message = UI.text(self, "", 70, 304, 820, 24, UI.WHITE)
     local sourcePreview = newPreview(self, 70, 344)
     local targetPreview = newPreview(self, 490, 344)
-    UI.text(self, "Hoch/Runter: Zeile   Links/Rechts oder Klick: ändern   A/Enter: auswählen   B/Esc: zurück", 70, 668, 620, 18, UI.GREY)
+    UI.text(self, QoL.L("hint_change"), 70, 668, 620, 18, UI.GREY)
 
     local function controllerOf(player)
         return QoL.controllerForLocalClient(player)
@@ -318,23 +322,23 @@ LUI.createMenu.QoLClassCopy = function(controller, userData)
     local function classText(player, classNum)
         local c = controllerOf(player)
         if not c then
-            return "- (Spieler nicht angemeldet)"
+            return QoL.L("cc_none")
         end
         if state.all then
-            return "alle " .. ClassCopy.classCount(c) .. " Klassen"
+            return QoL.L("cc_all_count", ClassCopy.classCount(c))
         end
-        return "< " .. (classNum + 1) .. "  " .. ClassCopy.className(c, classNum) .. " >"
+        return QoL.L("cc_class_entry", classNum + 1, ClassCopy.className(c, classNum))
     end
 
     local function paint()
         local sc, tc = controllerOf(state.sourcePlayer), controllerOf(state.targetPlayer)
         local texts = {
-            "Umfang:  < " .. (state.all and "Alle Klassen" or "Eine Klasse") .. " >",
-            "Von:   < " .. playerLabel(state.sourcePlayer) .. " >",
-            "Klasse:  " .. classText(state.sourcePlayer, state.sourceClass),
-            "Nach:  < " .. playerLabel(state.targetPlayer) .. " >",
-            "Klasse:  " .. classText(state.targetPlayer, state.targetClass),
-            "KOPIEREN"
+            QoL.L("cc_scope", state.all and QoL.L("cc_scope_all") or QoL.L("cc_scope_one")),
+            QoL.L("cc_from", playerLabel(state.sourcePlayer)),
+            QoL.L("cc_class", classText(state.sourcePlayer, state.sourceClass)),
+            QoL.L("cc_to", playerLabel(state.targetPlayer)),
+            QoL.L("cc_class", classText(state.targetPlayer, state.targetClass)),
+            QoL.L("cc_copy")
         }
         for index, row in ipairs(rows) do
             local selected = index == state.row
@@ -350,17 +354,17 @@ LUI.createMenu.QoLClassCopy = function(controller, userData)
             state.targetPlayer, state.targetClass, state.version or 0 }, ":")
         if key ~= state.previewKey then
             state.previewKey = key
-            local sourceTitle = "VON: " .. playerLabel(state.sourcePlayer)
-            local targetTitle = "NACH: " .. playerLabel(state.targetPlayer) .. "  (wird überschrieben)"
+            local sourceTitle = QoL.L("cc_preview_from", playerLabel(state.sourcePlayer))
+            local targetTitle = QoL.L("cc_preview_to", playerLabel(state.targetPlayer))
             if not sc then
-                sourcePreview.hide(sourceTitle, "Spieler nicht angemeldet")
+                sourcePreview.hide(sourceTitle, QoL.L("not_signed_in"))
             elseif state.all then
                 sourcePreview.showAll(sourceTitle, sc)
             else
                 sourcePreview.showClass(sourceTitle, sc, state.sourceClass)
             end
             if not tc then
-                targetPreview.hide(targetTitle, "Spieler nicht angemeldet")
+                targetPreview.hide(targetTitle, QoL.L("not_signed_in"))
             elseif state.all then
                 targetPreview.showAll(targetTitle, tc)
             else
@@ -368,8 +372,8 @@ LUI.createMenu.QoLClassCopy = function(controller, userData)
             end
         end
         if state.confirming then
-            local what = state.all and "ALLE Klassen" or ("Klasse " .. (state.targetClass + 1))
-            message:setText(what .. " von Spieler " .. (state.targetPlayer + 1) .. " überschreiben?   A/Enter/KOPIEREN: Ja   B/Esc: Nein")
+            local what = state.all and QoL.L("cc_confirm_all") or QoL.L("cc_confirm_one", state.targetClass + 1)
+            message:setText(QoL.L("cc_confirm", what, state.targetPlayer + 1))
             message:setRGB(UI.RED[1], UI.RED[2], UI.RED[3])
         end
     end
@@ -396,17 +400,16 @@ LUI.createMenu.QoLClassCopy = function(controller, userData)
     local function runCopy()
         local sc, tc = controllerOf(state.sourcePlayer), controllerOf(state.targetPlayer)
         if not sc or not tc then
-            message:setText("Beide Spieler müssen angemeldet sein (Splitscreen aktivieren).")
+            message:setText(QoL.L("cc_need_both"))
         elseif sc == tc and (state.all or state.sourceClass == state.targetClass) then
-            message:setText("Quelle und Ziel sind gleich.")
+            message:setText(QoL.L("cc_same"))
         elseif state.all then
             local count = ClassCopy.copyAll(sc, tc)
-            message:setText(count .. " Klassen von Spieler " .. (state.sourcePlayer + 1) .. " nach Spieler "
-                .. (state.targetPlayer + 1) .. " kopiert.")
+            message:setText(QoL.L("cc_copied_all", count, state.sourcePlayer + 1, state.targetPlayer + 1))
             message:setRGB(UI.GREEN[1], UI.GREEN[2], UI.GREEN[3])
         else
             ClassCopy.copy(sc, state.sourceClass, tc, state.targetClass)
-            message:setText("Kopiert: " .. ClassCopy.className(tc, state.targetClass))
+            message:setText(QoL.L("cc_copied_one", ClassCopy.className(tc, state.targetClass)))
             message:setRGB(UI.GREEN[1], UI.GREEN[2], UI.GREEN[3])
         end
     end
@@ -463,7 +466,7 @@ LUI.createMenu.QoLClassCopy = function(controller, userData)
         end)
     end
     -- Inside the split screen only menu x 50..903 is visible.
-    UI.button(self, "ZURÜCK", 700, 660, 170, handlers.back)
+    UI.button(self, QoL.L("back"), 700, 660, 170, handlers.back)
 
     paint()
     return self

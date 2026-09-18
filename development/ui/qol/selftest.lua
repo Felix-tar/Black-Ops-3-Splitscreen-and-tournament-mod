@@ -209,6 +209,22 @@ local function testTournamentRules(r)
         and copy.rounds[1].rules == "")
 end
 
+local function testLang(r)
+    local Lang = QoL.lang
+    check(r, "lang.default", Lang.strings[Lang.DEFAULT] ~= nil and Lang.strings.en.back ~= nil)
+    -- Every language has to know every key of the English master list.
+    for _, code in ipairs(Lang.ORDER) do
+        local missing = Lang.missing(code)
+        check(r, "lang.complete." .. code, #missing == 0)
+        if #missing > 0 then
+            QoL.log("language " .. code .. " missing " .. #missing .. " keys, first: " .. tostring(missing[1]))
+        end
+        check(r, "lang.name." .. code, type(Lang.NAMES[code]) == "string")
+    end
+    check(r, "lang.placeholder", QoL.L("player_n", 2) == string.gsub(Lang.strings[Lang.current()].player_n, "{1}", "2"))
+    check(r, "lang.unknownKey", QoL.L("does_not_exist_123") == "does_not_exist_123")
+end
+
 function Selftest.run()
     local results = { total = 0, failed = {} }
     local suites = {
@@ -219,7 +235,8 @@ function Selftest.run()
         { name = "bigstore", run = testBigStore, needs = QoL.bigStore },
         { name = "rules", run = testRules, needs = QoL.rules },
         { name = "presets", run = testPresets, needs = QoL.presets and QoL.rules },
-        { name = "tournamentRules", run = testTournamentRules, needs = QoL.tournament }
+        { name = "tournamentRules", run = testTournamentRules, needs = QoL.tournament },
+        { name = "lang", run = testLang, needs = QoL.lang }
     }
     for _, suite in ipairs(suites) do
         if suite.needs then

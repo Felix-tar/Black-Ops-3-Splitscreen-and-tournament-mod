@@ -125,6 +125,7 @@ greifen zur Laufzeit über `QoL.<name>` aufeinander zu, damit ein fehlendes Modu
 | Modul | Aufgabe |
 | --- | --- |
 | `util.lua` | `CoD.QoL`, Version/DEV-Schalter, Log, Fehlerbehandlung (`QoL.safe`), Controller-Zuordnung, Sitzungswerte (Dvars) |
+| `lang.lua` | alle Texte in sechs Sprachen, `QoL.L(key, ...)`, Sprachwahl |
 | `ui.lua` | Baukasten: Menüs, Tastenbelegung, Listen, Texte, Bilder, Maus, Texteingabe |
 | `input.lua` | Eingabegerät Spieler 1, Controller-Tausch, Wächter |
 | `lobbybuttons.lua` | Einträge in der linken Lobby-Liste |
@@ -147,6 +148,36 @@ greifen zur Laufzeit über `QoL.<name>` aufeinander zu, damit ein fehlendes Modu
 
 Dazu `development/scripts/mp/gametypes/_clientids.gsc`: die Originaldatei des Spiels plus Kill-Zählung,
 Killfeed-Ereignisse und Ergebnisbericht.
+
+## Sprachen
+
+Jeder Text, den die Mod anzeigt, steht in `lang.lua`. Englisch ist die Vorgabe und die Referenzliste; fehlt ein
+Schlüssel in einer anderen Sprache, greift automatisch Englisch.
+
+```lua
+QoL.L("cc_copied_one", name)     -- "Copied: {1}" -> "Copied: Sturmgewehr"
+```
+
+- Ohne eigene Wahl richtet sich die Mod nach dem Spiel: `Engine.GetLanguage()` liefert z. B. `german` oder
+  `simplifiedchinese`, eine Tabelle in `lang.lua` bildet das auf unsere Codes ab.
+- Die gewählte Sprache steht im Sitzungs-Dvar `qol_lang` und dauerhaft im Profilspeicher (Satz `L`).
+- `Lang.version` zählt Wechsel mit. Der 500-ms-Timer der Lobby vergleicht den Zähler, schreibt die Texte der
+  Spieler-2-Karte neu und baut die Lobby-Liste über `LuaUtils.ForceLobbyButtonUpdate()` neu auf. Nach dem Laden des
+  Profilspeichers ruft die Lobby `Lang.reset()`, weil die gespeicherte Sprache erst dann bekannt ist.
+- Umgeschaltet wird in den Spieleinstellungen: `input.lua` hängt neben der Zeile für das Eingabegerät eine zweite
+  Zeile mit der Sprachauswahl in die Liste `OptionGamepadSettingsPC`.
+- Texte werden immer **beim Aufbau eines Menüs** übersetzt, nie beim Laden der Datei. Tabellen wie die
+  Beschränkungs-Kategorien speichern deshalb nur Schlüssel (`r_cat_smg`), keine fertigen Texte. Der Zwischenspeicher
+  der Regelgruppen enthält die Sprache im Schlüssel.
+- Der Selbsttest prüft, dass jede Sprache genau die Schlüssel der englischen Liste hat.
+
+**Eine Sprache ergänzen:** in `lang.lua` `Lang.ORDER` und `Lang.NAMES` erweitern und eine Tabelle
+`Lang.strings.<code>` mit allen Schlüsseln anlegen (am einfachsten die englische kopieren und übersetzen).
+Der Selbsttest meldet danach jeden vergessenen Schlüssel.
+
+**Schriftarten:** Die Mod zeichnet mit `fonts/default.ttf` des Spiels. Chinesische und indische Zeichen sind darin
+je nach Installation nicht enthalten; dann bleibt der Text leer. Eine eigene Schriftart müsste als Asset in die
+Fastfile aufgenommen werden.
 
 ## UI-Baukasten
 
@@ -342,6 +373,8 @@ README sind die im Spiel bestätigten Funktionen von den ungetesteten getrennt.
   Namens-Bugs.
 - **Offline bleiben.** Mit geladener Mod nicht in den Online-Bereich wechseln.
 - **Reine Logik von Engine-Aufrufen trennen**, damit der Selbsttest sie prüfen kann.
+- **Keine Texte fest im Code.** Jeder sichtbare Text kommt über `QoL.L` aus `lang.lua`; Log- und Diagnosetexte
+  bleiben auf Englisch.
 
 ## Erweitern
 
