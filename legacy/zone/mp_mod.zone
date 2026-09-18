@@ -1,0 +1,8 @@
+>mode,mp
+>type,common
+
+#include "mp_mod.class"
+
+rawfile,dummy.cfg
+// Recovery: use the game's original lobby. The beta 0.2 replacement is broken.
+scriptparsetree,scripts/mp/gametypes/_clientids.gsc

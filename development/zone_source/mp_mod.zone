@@ -1,0 +1,5 @@
+>mode,mp
+>type,common
+#include "mp_mod.class"
+rawfile,dummy.cfg
+scriptparsetree,scripts/mp/gametypes/_clientids.gsc
